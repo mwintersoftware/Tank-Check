@@ -1,0 +1,46 @@
+# Tank-Check – persönliche Einstellungen (Oberasbach)
+
+home_lat = 49.4378
+home_lng = 10.9732
+fuel_type = "e10"                 # e10 | e5 | diesel
+consumption_l_per_100km = 5.2
+tank_capacity_l = 62.0
+fill_liters = 62.0
+min_net_saving_eur = 5.00
+home_search_radius_km = 5.0
+toll_eur = 0.0
+time_value_eur_per_h = 0.0
+remaining_range_km = 450.0   # Rest im Tank, bevor du losfährst
+card_fee_percent = 1.75      # typische Kreditkarten-Auslandsgebühr (in Kč zahlen)
+meal_eur = 12.0              # Essen für 2
+ausflug_wert_eur = 24.0      # Hausnummer für Quatschen/Ausflug (unbezahlbar)
+
+# Optional: fester CZ-Preis in Kč/l (sonst ČSÚ-Durchschnitt, sonst Nachfrage)
+# cz_price_kc = 42.39
+
+# Zwischenlösung ohne Tankerkönig-Key: Orts-Slug für Verbraucher-Info-Seite
+de_price_city = "oberasbach"
+
+# Referenzziele knapp hinter der Grenze (Koordinaten bitte prüfen).
+# Ohne stationsgenaue CZ-API dient der Punkt als Routing-Ziel + Durchschnittspreis.
+[[border_crossings]]
+name = "Waidhaus / Rozvadov"
+lat = 49.64251
+lng = 12.52208
+# Ziel ca. 5–10 km hinter der Grenze (Rozvadov-Umgebung)
+dest_lat = 49.6730
+dest_lng = 12.5520
+
+[[border_crossings]]
+name = "Schirnding / Cheb"
+lat = 50.08658
+lng = 12.25427
+dest_lat = 50.0790
+dest_lng = 12.3700
+
+[[border_crossings]]
+name = "Furth im Wald / Folmava"
+lat = 49.34080
+lng = 12.85015
+dest_lat = 49.3520
+dest_lng = 12.8800
