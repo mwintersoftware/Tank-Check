@@ -6,7 +6,6 @@ import { eur, kc, localWhen, price3 } from "./format";
 
 type Fuel = "e10" | "e5" | "diesel";
 
-const HOME = { lat: DEFAULT_CONFIG.homeLat, lng: DEFAULT_CONFIG.homeLng };
 const SETTINGS_KEY = "tank-check-settings";
 
 type Settings = {
@@ -15,7 +14,6 @@ type Settings = {
   meal: string;
   fee: string;
   ausflug: string;
-  useLive: boolean;
   czManual: string;
 };
 
@@ -26,7 +24,6 @@ function defaultSettings(): Settings {
     meal: String(DEFAULT_CONFIG.mealEur),
     fee: String(DEFAULT_CONFIG.cardFeePercent).replace(".", ","),
     ausflug: String(DEFAULT_CONFIG.ausflugWertEur),
-    useLive: true,
     czManual: "",
   };
 }
@@ -94,11 +91,16 @@ export default function App() {
   }
 
   async function locate(): Promise<{ lat: number; lng: number }> {
-    if (!settings.useLive || !navigator.geolocation) return HOME;
-    return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      throw new Error("Ohne GPS geht die Strecke nicht. Bitte Standort am Gerät anmachen.");
+    }
+    return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => resolve(HOME),
+        () =>
+          reject(
+            new Error("Standort nicht da. Bitte GPS erlauben und nochmal prüfen."),
+          ),
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
       );
     });
@@ -155,7 +157,8 @@ export default function App() {
             Tank-Check
           </p>
           <p className="mt-2 max-w-[22rem] text-[0.95rem] leading-snug text-[var(--color-ink)]/75">
-            Rest reicht hin – zurück mit CZ-Sprit. Essen, Karte, Quatschen.
+            Lohnt sich Tanken in Tschechien? Hin mit dem Rest im Tank, zurück
+            mit günstigerem Sprit – Essen und Quatschen inklusive.
           </p>
         </div>
         <button
@@ -330,18 +333,9 @@ function SettingsDrawer({
             hint="Hausnummer"
           />
 
-          <label className="flex items-center gap-3 text-sm text-[var(--color-ink)]/85">
-            <input
-              type="checkbox"
-              className="size-4 accent-[var(--color-moss)]"
-              checked={draft.useLive}
-              onChange={(e) => patch({ useLive: e.target.checked })}
-            />
-            Live-Standort nutzen (sonst Oberasbach)
-          </label>
-
           <p className="text-xs text-[var(--color-ink)]/55">
-            Verbrauch {DEFAULT_CONFIG.consumptionLPer100km.toString().replace(".", ",")} l / 100 km.
+            Start ist immer dein aktueller Standort (GPS). Verbrauch{" "}
+            {DEFAULT_CONFIG.consumptionLPer100km.toString().replace(".", ",")} l / 100 km.
             CZ-Preis holt die App von der günstigsten Tankstelle hinter der Grenze.
           </p>
 
