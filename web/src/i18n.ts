@@ -8,6 +8,9 @@ const de = {
   brand: "CZ-Tank-Check",
   tagline:
     "Lohnt sich Tanken in Tschechien? Hin mit dem Rest im Tank, zurück mit günstigerem Sprit – Essen und Quatschen inklusive.",
+  journeyDe: "DE",
+  journeyCz: "CZ",
+  journeyLabel: "Grenzpass",
   openSettings: "Einstellungen öffnen",
   yourSetup: "Dein Setup",
   setupLine:
@@ -179,6 +182,9 @@ const cs: Dict = {
   brand: "CZ-Tank-Check",
   tagline:
     "Vyplatí se tankovat v Česku? Tam s tím, co zbývá v nádrži, zpět s levnějším benzinem – jídlo a pokec v ceně.",
+  journeyDe: "DE",
+  journeyCz: "CZ",
+  journeyLabel: "Hraniční lístek",
   openSettings: "Otevřít nastavení",
   yourSetup: "Tvé nastavení",
   setupLine:

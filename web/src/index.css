@@ -1,16 +1,20 @@
 @import "tailwindcss";
 
+/**
+ * Grenzpass / Dawn Highway
+ * Nachtstraße → Kupferlicht → Teal der Grenze. Kein Moosgrün-Paper mehr.
+ */
 @theme {
-  --font-display: "Fraunces", Georgia, serif;
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --color-ink: #142018;
-  --color-paper: #eef3ea;
-  --color-moss: #2f5d3a;
-  --color-moss-deep: #1a2e1f;
-  --color-amber-road: #c9842a;
-  --color-mist: #d5e0d4;
-  --color-danger: #8b2e1f;
-  --color-ok: #1f6b3a;
+  --font-display: "Syne", "Segoe UI", sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #0e1520;
+  --color-paper: #f2f5f8;
+  --color-moss: #1f9b8a;
+  --color-moss-deep: #0b1320;
+  --color-amber-road: #ff8a3d;
+  --color-mist: #c8d4e0;
+  --color-danger: #e85d4c;
+  --color-ok: #2dd4a8;
 }
 
 html,
@@ -23,33 +27,189 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-ink);
-  background:
-    radial-gradient(ellipse 120% 80% at 10% -10%, #c8d9c4 0%, transparent 55%),
-    radial-gradient(ellipse 90% 70% at 100% 0%, #b7c9b0 0%, transparent 50%),
-    linear-gradient(165deg, #e8efe4 0%, #dfe8db 45%, #cfdccb 100%);
+  background: #0b1320;
   background-attachment: fixed;
 }
 
+/* Lebendiger Horizon: DE-Nacht → CZ-Dämmerung */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.07;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 15% -5%, rgba(255, 138, 61, 0.28), transparent 52%),
+    radial-gradient(ellipse 70% 45% at 95% 5%, rgba(31, 155, 138, 0.32), transparent 48%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(45, 212, 168, 0.12), transparent 55%),
+    linear-gradient(165deg, #0b1320 0%, #121c2e 42%, #162636 100%);
 }
 
-/* —— Wow-Prüfung: fliegende Stationen, Restaurants, Herzen —— */
+/* Fahrbahn-Streifen (subtil, animiert) */
+body::after {
+  content: "";
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  width: min(28rem, 92vw);
+  height: 42vh;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.22;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 18px,
+      rgba(255, 138, 61, 0.55) 18px,
+      rgba(255, 138, 61, 0.55) 28px
+    );
+  mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 100%);
+  animation: roadDash 1.8s linear infinite;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+/* App-Shell: Pass / Ticket */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-shell__frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  border: 1px solid rgba(242, 245, 248, 0.12);
+  background:
+    linear-gradient(145deg, rgba(242, 245, 248, 0.1) 0%, rgba(242, 245, 248, 0.04) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 138, 61, 0.08),
+    0 28px 60px -32px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(18px);
+}
+
+.app-shell__frame::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #ff8a3d, #1f9b8a 55%, #2dd4a8);
+  animation: borderPulse 4s ease-in-out infinite;
+}
+
+.brand-hero {
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+  background: linear-gradient(120deg, #f2f5f8 10%, #ff8a3d 48%, #2dd4a8 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: brandShimmer 8s ease-in-out infinite;
+  background-size: 180% 100%;
+}
+
+.journey-rail {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(242, 245, 248, 0.55);
+}
+
+.journey-rail__line {
+  flex: 1;
+  height: 2px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #ff8a3d, #1f9b8a);
+  position: relative;
+  overflow: hidden;
+}
+
+.journey-rail__line::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 28%;
+  background: rgba(242, 245, 248, 0.85);
+  animation: railRun 2.4s ease-in-out infinite;
+}
+
+.panel-glass {
+  border: 1px solid rgba(242, 245, 248, 0.14);
+  background: rgba(242, 245, 248, 0.92);
+  box-shadow: 0 16px 40px -28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.cta-pass {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  background: linear-gradient(120deg, #ff8a3d 0%, #ff6b2c 40%, #1f9b8a 100%);
+  background-size: 160% 100%;
+  color: #0b1320;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  box-shadow: 0 16px 36px -16px rgba(255, 138, 61, 0.7);
+  transition: transform 0.2s ease, filter 0.2s ease;
+  animation: ctaShift 6s ease-in-out infinite;
+}
+
+.cta-pass:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.01);
+  filter: brightness(1.05);
+}
+
+.cta-pass:disabled {
+  opacity: 0.65;
+}
+
+.cta-pass::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: ctaSheen 3.2s ease-in-out infinite;
+}
+
+/* Ergebnisse: Pass-Karte */
+.result-wow {
+  animation: resultPop 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+  border: 1px solid rgba(31, 155, 138, 0.22) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(242, 245, 248, 0.94)) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 138, 61, 0.08),
+    0 24px 50px -30px rgba(11, 19, 32, 0.55) !important;
+}
+
+/* —— Wow-Prüfung —— */
 .check-wow__sky {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(201, 132, 42, 0.35), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 90% 20%, rgba(47, 93, 58, 0.45), transparent 50%),
-    linear-gradient(160deg, #1a2e1f 0%, #243d2c 55%, #1a2e1f 100%);
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(255, 138, 61, 0.4), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 20%, rgba(31, 155, 138, 0.4), transparent 50%),
+    linear-gradient(160deg, #0b1320 0%, #152238 55%, #0b1320 100%);
 }
 
 .check-wow__bar {
   transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 0 18px rgba(201, 132, 42, 0.55);
+  box-shadow: 0 0 18px rgba(255, 138, 61, 0.55);
 }
 
 .check-wow__scan {
@@ -71,18 +231,18 @@ body::before {
 }
 
 .check-wow__fly--pump {
-  background: rgba(238, 243, 234, 0.95);
-  color: #1a2e1f;
+  background: rgba(242, 245, 248, 0.95);
+  color: #0b1320;
 }
 
 .check-wow__fly--food {
-  background: rgba(201, 132, 42, 0.95);
-  color: #142018;
+  background: rgba(255, 138, 61, 0.95);
+  color: #0b1320;
 }
 
 .check-wow__fly--soft {
-  background: rgba(255, 255, 255, 0.18);
-  color: #eef3ea;
+  background: rgba(255, 255, 255, 0.16);
+  color: #f2f5f8;
 }
 
 .check-wow__fly--0 { top: 18%; animation-duration: 5.2s; }
@@ -96,16 +256,46 @@ body::before {
   left: 50%;
   bottom: 8%;
   font-size: 1.15rem;
-  color: #e8a0a0;
+  color: #ff8a8a;
   opacity: 0;
   animation: wowHeart 3.4s ease-out infinite;
-  filter: drop-shadow(0 4px 8px rgba(139, 46, 31, 0.25));
+  filter: drop-shadow(0 4px 8px rgba(232, 93, 76, 0.3));
 }
 
 .check-wow__heart--0 { left: 18%; animation-duration: 3.1s; }
 .check-wow__heart--1 { left: 32%; animation-duration: 3.6s; font-size: 0.9rem; }
 .check-wow__heart--2 { left: 48%; animation-duration: 2.9s; }
 .check-wow__heart--3 { left: 68%; animation-duration: 3.8s; font-size: 1.35rem; }
+
+@keyframes roadDash {
+  from { background-position: 0 0; }
+  to { background-position: 0 46px; }
+}
+
+@keyframes borderPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; filter: brightness(1.2); }
+}
+
+@keyframes brandShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes railRun {
+  0% { left: -30%; }
+  100% { left: 110%; }
+}
+
+@keyframes ctaShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes ctaSheen {
+  0% { left: -40%; }
+  60%, 100% { left: 120%; }
+}
 
 @keyframes wowFly {
   0% {
@@ -146,11 +336,11 @@ body::before {
 @keyframes resultPop {
   0% {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translateY(28px) scale(0.95);
   }
-  60% {
+  55% {
     opacity: 1;
-    transform: translateY(-4px) scale(1.01);
+    transform: translateY(-6px) scale(1.015);
   }
   100% {
     opacity: 1;
@@ -158,16 +348,27 @@ body::before {
   }
 }
 
-.result-wow {
-  animation: resultPop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  body::after,
   .check-wow__fly,
   .check-wow__heart,
   .check-wow__scan,
-  .result-wow {
+  .result-wow,
+  .brand-hero,
+  .journey-rail__line::after,
+  .cta-pass,
+  .cta-pass::after,
+  .app-shell__frame::before {
     animation: none !important;
+  }
+  .check-wow__fly,
+  .check-wow__heart,
+  .result-wow {
     opacity: 1;
   }
 }

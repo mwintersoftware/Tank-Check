@@ -302,127 +302,139 @@ export default function App() {
     settings.fuel === "diesel" ? t(locale, "diesel") : settings.fuel.toUpperCase();
 
   return (
-    <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-10 pt-8 sm:pt-12">
-      <header className="mb-7 flex items-start justify-between gap-3 animate-[fadeUp_0.5s_ease-out]">
-        <div>
-          <p className="font-display text-4xl font-bold tracking-tight text-[var(--color-moss-deep)] sm:text-5xl">
-            {t(locale, "brand")}
-          </p>
-          <p className="mt-2 max-w-[22rem] text-[0.95rem] leading-snug text-[var(--color-ink)]/75">
-            {t(locale, "tagline")}
-          </p>
-        </div>
-        <div className="mt-1 flex shrink-0 flex-col items-end gap-2">
-          <LangSwitch locale={locale} onChange={setLocale} />
+    <div className="app-shell relative mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-12 pt-7 sm:px-5 sm:pt-10">
+      <div className="app-shell__frame flex flex-1 flex-col px-5 pb-8 pt-6 sm:px-6 sm:pt-7">
+        <header className="mb-6 animate-[fadeUp_0.55s_ease-out]">
+          <div className="journey-rail mb-4">
+            <span>{t(locale, "journeyDe")}</span>
+            <span className="journey-rail__line" aria-hidden />
+            <span className="text-[var(--color-amber-road)]">{t(locale, "journeyLabel")}</span>
+            <span className="journey-rail__line" aria-hidden />
+            <span>{t(locale, "journeyCz")}</span>
+          </div>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="brand-hero font-display text-[2.65rem] font-extrabold sm:text-5xl">
+                {t(locale, "brand")}
+              </p>
+              <p className="mt-3 max-w-[22rem] text-[0.95rem] leading-snug text-[var(--color-paper)]/72">
+                {t(locale, "tagline")}
+              </p>
+            </div>
+            <div className="mt-1 flex shrink-0 flex-col items-end gap-2">
+              <LangSwitch locale={locale} onChange={setLocale} />
+              <button
+                type="button"
+                aria-label={t(locale, "openSettings")}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen(true)}
+                className="grid size-11 place-items-center rounded-2xl border border-white/15 bg-white/10 text-[var(--color-paper)] shadow-sm backdrop-blur-sm transition hover:bg-white/16"
+              >
+                <svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true">
+                  <path
+                    d="M1 1.5h20M1 8h20M1 14.5h20"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <section className="space-y-3.5 animate-[fadeUp_0.65s_ease-out]">
           <button
             type="button"
-            aria-label={t(locale, "openSettings")}
-            aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
-            className="grid size-11 place-items-center rounded-xl border border-[var(--color-moss)]/20 bg-white/70 text-[var(--color-moss-deep)] shadow-sm"
+            className="panel-glass w-full rounded-2xl px-4 py-3.5 text-left text-sm text-[var(--color-ink)]/85"
           >
-            <svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true">
-              <path
-                d="M1 1.5h20M1 8h20M1 14.5h20"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              />
-            </svg>
+            <span className="font-semibold text-[var(--color-moss-deep)]">
+              {t(locale, "yourSetup")}
+            </span>
+            <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
+              {t(locale, "setupLine", {
+                fuel: fuelLabel,
+                cons: settings.cons || "—",
+                km: settings.rangeKm || "—",
+                meal: settings.meal || "—",
+                fee: settings.fee || "—",
+              })}
+            </span>
           </button>
-        </div>
-      </header>
 
-      <section className="space-y-3.5 animate-[fadeUp_0.55s_ease-out]">
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className="w-full rounded-2xl border border-[var(--color-moss)]/15 bg-white/60 px-4 py-3 text-left text-sm text-[var(--color-ink)]/80"
-        >
-          <span className="font-semibold text-[var(--color-moss-deep)]">
-            {t(locale, "yourSetup")}
-          </span>
-          <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
-            {t(locale, "setupLine", {
-              fuel: fuelLabel,
-              cons: settings.cons || "—",
-              km: settings.rangeKm || "—",
-              meal: settings.meal || "—",
-              fee: settings.fee || "—",
-            })}
-          </span>
-        </button>
+          {error && (
+            <div
+              ref={errorRef}
+              className="space-y-2 rounded-2xl border border-[var(--color-danger)]/35 bg-[var(--color-danger)]/15 px-4 py-3 text-sm text-[#ffc4bc]"
+              role="alert"
+            >
+              <p>{error}</p>
+              {needCz && lastCz && (
+                <div className="space-y-1.5 text-[var(--color-paper)]">
+                  <p className="text-xs text-[var(--color-paper)]/70">
+                    {t(locale, "lastPriceHint")}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => runCheck({ useLastCz: true })}
+                    className="rounded-xl bg-[var(--color-amber-road)] px-3 py-2 text-sm font-semibold text-[var(--color-moss-deep)] disabled:opacity-60"
+                  >
+                    {t(locale, "useLastPrice", {
+                      price: kc(lastCz.priceKc),
+                      age: ageLabel(lastCz.timestamp, locale),
+                    })}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-        {error && (
-          <div
-            ref={errorRef}
-            className="space-y-2 rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-4 py-3 text-sm text-[var(--color-danger)]"
-            role="alert"
+          <button
+            type="button"
+            onClick={() => runCheck()}
+            disabled={pending}
+            className="cta-pass w-full rounded-2xl px-4 py-4 text-lg disabled:opacity-60"
           >
-            <p>{error}</p>
-            {needCz && lastCz && (
-              <div className="space-y-1.5 text-[var(--color-ink)]">
-                <p className="text-xs text-[var(--color-ink)]/65">
-                  {t(locale, "lastPriceHint")}
-                </p>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => runCheck({ useLastCz: true })}
-                  className="rounded-xl bg-[var(--color-moss-deep)] px-3 py-2 text-sm font-semibold text-[var(--color-paper)] disabled:opacity-60"
-                >
-                  {t(locale, "useLastPrice", {
-                    price: kc(lastCz.priceKc),
-                    age: ageLabel(lastCz.timestamp, locale),
-                  })}
-                </button>
-              </div>
-            )}
+            {pending ? t(locale, "checking") : t(locale, "checkNow")}
+          </button>
+
+          {progress && (
+            <CheckWow
+              locale={locale}
+              progress={progress}
+              celebrateOuting={celebrateOuting}
+              done={wowDone}
+            />
+          )}
+        </section>
+
+        {result && (
+          <div ref={resultRef} className="mt-2">
+            <ResultCard
+              locale={locale}
+              data={result}
+              routeName={routeName ?? result.strecke.borderName}
+              onRoute={setRouteName}
+              remainingRangeKm={num(settings.rangeKm, DEFAULT_CONFIG.remainingRangeKm)}
+              consumptionLPer100km={num(
+                settings.cons,
+                DEFAULT_CONFIG.consumptionLPer100km,
+              )}
+              mealEur={num(settings.meal, DEFAULT_CONFIG.mealEur)}
+              cardFeePercent={num(settings.fee, DEFAULT_CONFIG.cardFeePercent)}
+              ausflugWertEur={num(settings.ausflug, DEFAULT_CONFIG.ausflugWertEur)}
+            />
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => runCheck()}
-          disabled={pending}
-          className="w-full rounded-2xl bg-[var(--color-moss-deep)] px-4 py-4 text-lg font-semibold text-[var(--color-paper)] shadow-[0_12px_30px_-12px_rgba(26,46,31,0.7)] transition hover:bg-[var(--color-moss)] disabled:opacity-60"
-        >
-          {pending ? t(locale, "checking") : t(locale, "checkNow")}
-        </button>
-
-        {progress && (
-          <CheckWow
-            locale={locale}
-            progress={progress}
-            celebrateOuting={celebrateOuting}
-            done={wowDone}
-          />
-        )}
-      </section>
-
-      {result && (
-        <div ref={resultRef}>
-          <ResultCard
-            locale={locale}
-            data={result}
-            routeName={routeName ?? result.strecke.borderName}
-            onRoute={setRouteName}
-            remainingRangeKm={num(settings.rangeKm, DEFAULT_CONFIG.remainingRangeKm)}
-            consumptionLPer100km={num(
-              settings.cons,
-              DEFAULT_CONFIG.consumptionLPer100km,
-            )}
-            mealEur={num(settings.meal, DEFAULT_CONFIG.mealEur)}
-            cardFeePercent={num(settings.fee, DEFAULT_CONFIG.cardFeePercent)}
-            ausflugWertEur={num(settings.ausflug, DEFAULT_CONFIG.ausflugWertEur)}
-          />
-        </div>
-      )}
-
-      <footer className="mt-auto pt-10 text-xs leading-relaxed text-[var(--color-ink)]/55">
-        <p>{t(locale, "footer")}</p>
-        <LegalLinks locale={locale} onOpen={setLegalPage} />
-      </footer>
+        <footer className="mt-auto pt-10 text-xs leading-relaxed text-[var(--color-paper)]/50">
+          <p>{t(locale, "footer")}</p>
+          <LegalLinks locale={locale} onOpen={setLegalPage} />
+        </footer>
+      </div>
 
       {menuOpen && (
         <SettingsDrawer
@@ -437,13 +449,6 @@ export default function App() {
 
       <LegalModal page={legalPage} locale={locale} onClose={() => setLegalPage(null)} />
       <CookieBanner locale={locale} />
-
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -602,7 +607,7 @@ function LangSwitch({
 }) {
   return (
     <div
-      className="flex overflow-hidden rounded-lg border border-[var(--color-moss)]/20 bg-white/70 text-xs font-semibold"
+      className="flex overflow-hidden rounded-xl border border-white/20 bg-white/10 text-xs font-bold backdrop-blur-sm"
       role="group"
       aria-label={t(locale, "language")}
     >
@@ -611,8 +616,8 @@ function LangSwitch({
         onClick={() => onChange("de")}
         className={`px-2.5 py-1.5 ${
           locale === "de"
-            ? "bg-[var(--color-moss-deep)] text-[var(--color-paper)]"
-            : "text-[var(--color-moss-deep)]"
+            ? "bg-[var(--color-amber-road)] text-[var(--color-moss-deep)]"
+            : "text-[var(--color-paper)]/80"
         }`}
       >
         DE
@@ -622,8 +627,8 @@ function LangSwitch({
         onClick={() => onChange("cs")}
         className={`px-2.5 py-1.5 ${
           locale === "cs"
-            ? "bg-[var(--color-moss-deep)] text-[var(--color-paper)]"
-            : "text-[var(--color-moss-deep)]"
+            ? "bg-[var(--color-amber-road)] text-[var(--color-moss-deep)]"
+            : "text-[var(--color-paper)]/80"
         }`}
       >
         CZ

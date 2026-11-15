@@ -37,7 +37,7 @@ export function CheckWow({ locale, progress, celebrateOuting, done }: Props) {
 
   return (
     <div
-      className="check-wow relative mt-1 overflow-hidden rounded-3xl border border-[var(--color-moss)]/25 bg-[var(--color-moss-deep)] text-[var(--color-paper)] shadow-[0_24px_50px_-28px_rgba(26,46,31,0.75)]"
+      className="check-wow relative mt-1 overflow-hidden rounded-3xl border border-white/12 bg-[var(--color-moss-deep)] text-[var(--color-paper)] shadow-[0_24px_50px_-28px_rgba(0,0,0,0.65)]"
       aria-live="polite"
       role="status"
     >

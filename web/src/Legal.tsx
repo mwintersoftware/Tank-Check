@@ -32,16 +32,16 @@ export function CookieBanner({ locale }: { locale: Locale }) {
     <div
       role="dialog"
       aria-label={t(locale, "cookieAria")}
-      className="fixed inset-x-0 bottom-0 z-[60] border-t border-[var(--color-moss)]/15 bg-[var(--color-paper)]/95 px-5 py-4 shadow-[0_-12px_40px_-20px_rgba(26,46,31,0.45)] backdrop-blur-sm"
+      className="fixed inset-x-0 bottom-0 z-[60] border-t border-white/10 bg-[var(--color-moss-deep)]/95 px-5 py-4 shadow-[0_-12px_40px_-20px_rgba(0,0,0,0.55)] backdrop-blur-md"
     >
       <div className="mx-auto flex max-w-lg flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-        <p className="flex-1 text-sm leading-snug text-[var(--color-ink)]/80">
+        <p className="flex-1 text-sm leading-snug text-[var(--color-paper)]/80">
           {t(locale, "cookieText")}
         </p>
         <button
           type="button"
           onClick={accept}
-          className="shrink-0 rounded-xl bg-[var(--color-moss-deep)] px-4 py-2.5 text-sm font-semibold text-[var(--color-paper)]"
+          className="shrink-0 rounded-xl bg-[var(--color-amber-road)] px-4 py-2.5 text-sm font-semibold text-[var(--color-moss-deep)]"
         >
           {t(locale, "cookieOk")}
         </button>
@@ -61,14 +61,14 @@ export function LegalLinks({
     <nav className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label={t(locale, "legalNav")}>
       <button
         type="button"
-        className="text-[var(--color-moss)] underline-offset-2 hover:underline"
+        className="text-[var(--color-amber-road)] underline-offset-2 hover:underline"
         onClick={() => onOpen("impressum")}
       >
         {t(locale, "impressum")}
       </button>
       <button
         type="button"
-        className="text-[var(--color-moss)] underline-offset-2 hover:underline"
+        className="text-[var(--color-amber-road)] underline-offset-2 hover:underline"
         onClick={() => onOpen("datenschutz")}
       >
         {t(locale, "privacy")}
