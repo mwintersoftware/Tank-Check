@@ -2,32 +2,62 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { calculateTrip } from "../shared/calc";
 import { DEFAULT_CONFIG } from "../shared/config";
 import type { CheckResponse, RouteOption } from "../shared/types";
-import { eur, kc, liters, localWhen, price3 } from "./format";
+import { ageLabel, eur, kc, liters, localWhen, price3 } from "./format";
 import { CookieBanner, LegalLinks, LegalModal, type LegalPage } from "./Legal";
 import { loadLocale, saveLocale, t, type Locale } from "./i18n";
 
 type Fuel = "e10" | "e5" | "diesel";
 
 const SETTINGS_KEY = "tank-check-settings";
+const LAST_CZ_KEY = "tank-check-last-cz";
 
 type Settings = {
   fuel: Fuel;
   rangeKm: string;
+  cons: string;
   meal: string;
   fee: string;
   ausflug: string;
   czManual: string;
 };
 
+type LastCzPrice = {
+  priceKc: number;
+  timestamp: string;
+  fuel: Fuel;
+};
+
 function defaultSettings(): Settings {
   return {
     fuel: "e10",
     rangeKm: String(DEFAULT_CONFIG.remainingRangeKm),
+    cons: String(DEFAULT_CONFIG.consumptionLPer100km).replace(".", ","),
     meal: String(DEFAULT_CONFIG.mealEur),
     fee: String(DEFAULT_CONFIG.cardFeePercent).replace(".", ","),
     ausflug: String(DEFAULT_CONFIG.ausflugWertEur),
     czManual: "",
   };
+}
+
+function loadLastCz(): LastCzPrice | null {
+  try {
+    const raw = localStorage.getItem(LAST_CZ_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as LastCzPrice;
+    if (!Number.isFinite(p.priceKc) || !p.timestamp) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
+
+function saveLastCz(priceKc: number, timestamp: string, fuel: Fuel): void {
+  try {
+    const row: LastCzPrice = { priceKc, timestamp, fuel };
+    localStorage.setItem(LAST_CZ_KEY, JSON.stringify(row));
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadSettings(): Settings {
@@ -82,6 +112,7 @@ export default function App() {
   const [needCz, setNeedCz] = useState(false);
   const [pending, setPending] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
+  const [lastCz, setLastCz] = useState<LastCzPrice | null>(loadLastCz);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +158,7 @@ export default function App() {
     });
   }
 
-  async function runCheck() {
+  async function runCheck(opts?: { useLastCz?: boolean }) {
     setError(null);
     setNeedCz(false);
     setPending(true);
@@ -139,7 +170,11 @@ export default function App() {
         fuelType: settings.fuel,
       };
       const manual = settings.czManual.trim().replace(",", ".");
-      if (manual) payload.czPriceKc = Number(manual);
+      if (manual) {
+        payload.czPriceKc = Number(manual);
+      } else if (opts?.useLastCz && lastCz) {
+        payload.czPriceKc = lastCz.priceKc;
+      }
 
       const res = await fetch("/api/check", {
         method: "POST",
@@ -152,7 +187,7 @@ export default function App() {
           setNeedCz(true);
           setError(t(locale, "errCzRequired"));
           setResult(null);
-          setMenuOpen(true);
+          if (!lastCz) setMenuOpen(true);
           return;
         }
         const msg =
@@ -164,6 +199,14 @@ export default function App() {
       const body = data as CheckResponse;
       setResult(body);
       setRouteName(body.routen[0]?.name ?? body.strecke.borderName);
+      if (body.tschechien.kind !== "manual" || !opts?.useLastCz) {
+        saveLastCz(body.tschechien.priceKc, body.tschechien.timestamp, settings.fuel);
+        setLastCz({
+          priceKc: body.tschechien.priceKc,
+          timestamp: body.tschechien.timestamp,
+          fuel: settings.fuel,
+        });
+      }
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : t(locale, "errUnknown"));
@@ -219,6 +262,7 @@ export default function App() {
           <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
             {t(locale, "setupLine", {
               fuel: fuelLabel,
+              cons: settings.cons || "—",
               km: settings.rangeKm || "—",
               meal: settings.meal || "—",
               fee: settings.fee || "—",
@@ -227,18 +271,36 @@ export default function App() {
         </button>
 
         {error && (
-          <p
+          <div
             ref={errorRef}
-            className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-4 py-3 text-sm text-[var(--color-danger)]"
+            className="space-y-2 rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-4 py-3 text-sm text-[var(--color-danger)]"
             role="alert"
           >
-            {error}
-          </p>
+            <p>{error}</p>
+            {needCz && lastCz && (
+              <div className="space-y-1.5 text-[var(--color-ink)]">
+                <p className="text-xs text-[var(--color-ink)]/65">
+                  {t(locale, "lastPriceHint")}
+                </p>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => runCheck({ useLastCz: true })}
+                  className="rounded-xl bg-[var(--color-moss-deep)] px-3 py-2 text-sm font-semibold text-[var(--color-paper)] disabled:opacity-60"
+                >
+                  {t(locale, "useLastPrice", {
+                    price: kc(lastCz.priceKc),
+                    age: ageLabel(lastCz.timestamp, locale),
+                  })}
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         <button
           type="button"
-          onClick={runCheck}
+          onClick={() => runCheck()}
           disabled={pending}
           className="w-full rounded-2xl bg-[var(--color-moss-deep)] px-4 py-4 text-lg font-semibold text-[var(--color-paper)] shadow-[0_12px_30px_-12px_rgba(26,46,31,0.7)] transition hover:bg-[var(--color-moss)] disabled:opacity-60"
         >
@@ -254,6 +316,10 @@ export default function App() {
             routeName={routeName ?? result.strecke.borderName}
             onRoute={setRouteName}
             remainingRangeKm={num(settings.rangeKm, DEFAULT_CONFIG.remainingRangeKm)}
+            consumptionLPer100km={num(
+              settings.cons,
+              DEFAULT_CONFIG.consumptionLPer100km,
+            )}
             mealEur={num(settings.meal, DEFAULT_CONFIG.mealEur)}
             cardFeePercent={num(settings.fee, DEFAULT_CONFIG.cardFeePercent)}
             ausflugWertEur={num(settings.ausflug, DEFAULT_CONFIG.ausflugWertEur)}
@@ -405,6 +471,13 @@ function SettingsDrawer({
             note={t(locale, "rangeNote")}
           />
           <Field
+            label={t(locale, "consLabel")}
+            value={draft.cons}
+            onChange={(v) => patch({ cons: v })}
+            hint={t(locale, "consHint")}
+            note={t(locale, "consNote")}
+          />
+          <Field
             label={t(locale, "mealLabel")}
             value={draft.meal}
             onChange={(v) => patch({ meal: v })}
@@ -423,11 +496,7 @@ function SettingsDrawer({
             hint={t(locale, "ausflugHint")}
           />
 
-          <p className="text-xs text-[var(--color-ink)]/55">
-            {t(locale, "settingsHint", {
-              cons: DEFAULT_CONFIG.consumptionLPer100km.toString().replace(".", ","),
-            })}
-          </p>
+          <p className="text-xs text-[var(--color-ink)]/55">{t(locale, "settingsHint")}</p>
 
           <label className="block text-sm font-semibold text-[var(--color-moss-deep)]">
             {needCz ? t(locale, "czPriceLabelNeed") : t(locale, "czPriceLabelOpt")}
@@ -493,6 +562,7 @@ function ResultCard({
   routeName,
   onRoute,
   remainingRangeKm,
+  consumptionLPer100km,
   mealEur,
   cardFeePercent,
   ausflugWertEur,
@@ -502,10 +572,13 @@ function ResultCard({
   routeName: string;
   onRoute: (name: string) => void;
   remainingRangeKm: number;
+  consumptionLPer100km: number;
   mealEur: number;
   cardFeePercent: number;
   ausflugWertEur: number;
 }) {
+  const [shareNote, setShareNote] = useState<string | null>(null);
+
   const selected: RouteOption =
     data.routen.find((r) => r.name === routeName) ?? data.routen[0] ?? {
       name: data.strecke.borderName,
@@ -531,7 +604,7 @@ function ResultCard({
         pCz,
         fillLiters: data.annahmen.fillLiters,
         tankCapacityL: data.annahmen.tankCapacityL,
-        consumptionLPer100km: data.annahmen.consumptionLPer100km,
+        consumptionLPer100km,
         dOnewayKm: selected.onewayKm,
         remainingRangeKm,
         cardFeePercent,
@@ -545,6 +618,7 @@ function ResultCard({
       pCz,
       selected.onewayKm,
       remainingRangeKm,
+      consumptionLPer100km,
       cardFeePercent,
       mealEur,
       ausflugWertEur,
@@ -559,9 +633,9 @@ function ResultCard({
         ? t(locale, "worthTrip")
         : t(locale, "notWorthFuel");
   const ok = trip.lohntSprit || trip.lohntAusflug;
-  const czLabel = selected.stationName
-    ? `${selected.stationName}${selected.stationAddress ? `, ${selected.stationAddress}` : ""}`
-    : data.tschechien.label;
+  const czName = selected.stationName || data.tschechien.label;
+  const czAddress = selected.stationAddress;
+  const czHours = selected.stationOpeningHours;
   const naviHref = safeNaviHref(selected.naviUrl);
 
   const hints = useMemo(() => {
@@ -578,6 +652,55 @@ function ResultCard({
     if (data.tschechien.note?.includes("14")) list.unshift(t(locale, "hintStale"));
     return list;
   }, [locale, data.kursKcProEur, data.tschechien.note, trip.kannHin]);
+
+  const shareText = useMemo(() => {
+    const lines = [
+      `${t(locale, "shareTitle")}: ${headline}`,
+      czName + (czAddress ? ` · ${czAddress}` : ""),
+      `${kc(selected.priceKc)} Kč/l · ${Math.round(selected.onewayKm)} km · ${t(locale, "approxMin", { min: Math.round(selected.durationH * 60) })}`,
+      czHours
+        ? `${t(locale, "openingHours")}: ${czHours}`
+        : `${t(locale, "openingHours")}: ${t(locale, "hoursUnknown")}`,
+      `${t(locale, "germany")}: ${price3(data.deutschland.priceEur)} €/l (${ageLabel(data.deutschland.timestamp, locale)})`,
+      `${t(locale, "czechiaFx")}: ${kc(selected.priceKc)} Kč/l (${ageLabel(selected.priceTimestamp, locale)})`,
+      t(locale, "priceGuarantee"),
+    ];
+    if (naviHref) lines.push(naviHref);
+    return lines.filter(Boolean).join("\n");
+  }, [
+    locale,
+    headline,
+    czName,
+    czAddress,
+    czHours,
+    selected,
+    data.deutschland,
+    naviHref,
+  ]);
+
+  async function shareNative() {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: t(locale, "shareTitle"), text: shareText });
+        return;
+      }
+      await navigator.clipboard.writeText(shareText);
+      setShareNote(t(locale, "shareCopied"));
+    } catch {
+      /* Abbruch / Fehler */
+    }
+  }
+
+  async function shareCopy() {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShareNote(t(locale, "shareCopied"));
+    } catch {
+      setShareNote(null);
+    }
+  }
+
+  const waHref = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
   return (
     <article
@@ -597,6 +720,14 @@ function ResultCard({
             when: localWhen(data.checkedAt, locale),
             rate: price3(data.kursKcProEur),
           })}
+        </p>
+        <p className="mt-1 text-sm text-[var(--color-ink)]/55">
+          {t(locale, "priceAgeDe", { age: ageLabel(data.deutschland.timestamp, locale) })}
+          {" · "}
+          {t(locale, "priceAgeCz", { age: ageLabel(selected.priceTimestamp, locale) })}
+        </p>
+        <p className="mt-1 text-sm text-[var(--color-ink)]/55">
+          {t(locale, "priceGuarantee")}
         </p>
       </div>
 
@@ -628,14 +759,32 @@ function ResultCard({
                 </span>
                 <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
                   {r.stationName ? `${r.stationName} · ` : ""}
+                  {r.stationAddress ? `${r.stationAddress} · ` : ""}
                   {kc(r.priceKc)} Kč/l · {Math.round(r.onewayKm)} km ·{" "}
                   {t(locale, "approxMin", { min: Math.round(r.durationH * 60) })}
                 </span>
+                {r.stationOpeningHours && (
+                  <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
+                    {t(locale, "openingHours")}: {r.stationOpeningHours}
+                  </span>
+                )}
               </span>
             </label>
           ))}
         </div>
       </fieldset>
+
+      <div className="rounded-2xl border border-[var(--color-moss)]/15 bg-white/60 px-4 py-3 text-sm">
+        <p className="font-semibold text-[var(--color-moss-deep)]">{czName}</p>
+        <p className="mt-1 text-[var(--color-ink)]/75">
+          <span className="font-medium">{t(locale, "address")}: </span>
+          {czAddress || t(locale, "hoursUnknown")}
+        </p>
+        <p className="mt-1 text-[var(--color-ink)]/75">
+          <span className="font-medium">{t(locale, "openingHours")}: </span>
+          {czHours || t(locale, "hoursUnknown")}
+        </p>
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-[var(--color-moss)]/15">
         <iframe
@@ -654,6 +803,35 @@ function ResultCard({
           {t(locale, "navi", { name: selected.stationName || selected.name })}
         </a>
       )}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={shareNative}
+          className="rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-2 text-sm font-semibold text-[var(--color-moss-deep)]"
+        >
+          {t(locale, "share")}
+        </button>
+        <button
+          type="button"
+          onClick={shareCopy}
+          className="rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-2 text-sm font-semibold text-[var(--color-moss-deep)]"
+        >
+          {t(locale, "shareCopy")}
+        </button>
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-2 text-sm font-semibold text-[var(--color-moss-deep)]"
+        >
+          {t(locale, "shareWhatsApp")}
+        </a>
+        {shareNote && (
+          <span className="self-center text-xs text-[var(--color-ok)]">{shareNote}</span>
+        )}
+      </div>
+
       <p className="text-xs text-[var(--color-ink)]/55">
         {t(locale, "roundTrip", {
           one: Math.round(selected.onewayKm),
@@ -667,12 +845,30 @@ function ResultCard({
         <Row
           label={t(locale, "germany")}
           value={`${data.deutschland.stationName}, ${data.deutschland.fuelType.toUpperCase()} ${price3(data.deutschland.priceEur)} €/l`}
-          meta={`${localWhen(data.deutschland.timestamp, locale)}, ${data.deutschland.source}`}
+          meta={[
+            data.deutschland.address,
+            data.deutschland.openingHours
+              ? `${t(locale, "openingHours")}: ${data.deutschland.openingHours}`
+              : undefined,
+            data.deutschland.isOpen === true
+              ? t(locale, "openNow")
+              : data.deutschland.isOpen === false
+                ? t(locale, "closedNow")
+                : undefined,
+            `${ageLabel(data.deutschland.timestamp, locale)} · ${data.deutschland.source}`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         />
         <Row
           label={t(locale, "czechiaFx")}
-          value={`${czLabel} ${kc(selected.priceKc)} Kč = ${price3(pCz)} €/l`}
-          meta={`${selected.priceSource} · ${price3(data.kursKcProEur)} Kč/€ · ${t(locale, "withCard", { price: price3(trip.pCzPay) })}`}
+          value={`${czName}${czAddress ? `, ${czAddress}` : ""} · ${kc(selected.priceKc)} Kč = ${price3(pCz)} €/l`}
+          meta={[
+            czHours
+              ? `${t(locale, "openingHours")}: ${czHours}`
+              : `${t(locale, "openingHours")}: ${t(locale, "hoursUnknown")}`,
+            `${selected.priceSource} · ${ageLabel(selected.priceTimestamp, locale)} · ${price3(data.kursKcProEur)} Kč/€ · ${t(locale, "withCard", { price: price3(trip.pCzPay) })}`,
+          ].join(" · ")}
         />
         <Row
           label={t(locale, "tankLogic")}

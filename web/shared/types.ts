@@ -17,6 +17,7 @@ export type RouteOption = {
   naviUrl: string;
   stationName?: string;
   stationAddress?: string;
+  stationOpeningHours?: string;
   priceKc: number;
   priceEur: number;
   priceKind: PriceKind;
@@ -55,6 +56,9 @@ export type CheckResponse = {
   homeLng: number;
   deutschland: {
     stationName: string;
+    address?: string;
+    openingHours?: string;
+    isOpen?: boolean;
     fuelType: string;
     priceEur: number;
     source: string;

@@ -65,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fetchEurCzk: providers.fetchEurCzk,
       fetchCzPrice: providers.fetchCzPrice,
       fetchCzStations: providers.fetchCzStations,
+      fetchOpeningHours: providers.fetchOpeningHours,
       manualCzPrice: providers.manualCzPrice,
       routeDistance: providers.routeDistance,
     });

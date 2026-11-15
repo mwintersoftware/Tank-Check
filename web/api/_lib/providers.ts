@@ -8,6 +8,9 @@ export type PriceQuote = {
   timestamp: string;
   kind: PriceKind;
   stationName?: string;
+  address?: string;
+  openingHours?: string;
+  isOpen?: boolean;
   lat?: number;
   lng?: number;
   note?: string;
@@ -140,9 +143,13 @@ export async function fetchDeCheapest(
       ok: boolean;
       message?: string;
       stations?: Array<{
+        id?: string;
         brand?: string;
         name?: string;
+        street?: string;
+        houseNumber?: string;
         place?: string;
+        postCode?: string;
         price?: number;
         isOpen?: boolean;
         lat?: number;
@@ -158,6 +165,21 @@ export async function fetchDeCheapest(
 
     const best = open.reduce((a, b) => ((a.price ?? 999) <= (b.price ?? 999) ? a : b));
     const stationName = `${best.brand || best.name || "Tankstelle"} ${best.place || ""}`.trim();
+    const address = [best.street, best.houseNumber, best.postCode, best.place]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    let openingHours: string | undefined;
+    if (best.id) {
+      openingHours =
+        (await fetchDeStationHours(best.id, key)) ??
+        (best.lat != null && best.lng != null
+          ? (await fetchOpeningHoursCached(best.lat, best.lng)) ?? undefined
+          : undefined);
+    } else if (best.lat != null && best.lng != null) {
+      openingHours = (await fetchOpeningHoursCached(best.lat, best.lng)) ?? undefined;
+    }
     const quote: PriceQuote = {
       price: Number(best.price),
       currency: "EUR",
@@ -166,6 +188,9 @@ export async function fetchDeCheapest(
       timestamp: new Date().toISOString(),
       kind: "station",
       stationName,
+      address: address || undefined,
+      openingHours,
+      isOpen: best.isOpen,
       lat: best.lat,
       lng: best.lng,
     };
@@ -174,6 +199,48 @@ export async function fetchDeCheapest(
   } catch {
     return fetchDeFallback(fuel);
   }
+}
+
+async function fetchOpeningHoursCached(lat: number, lng: number): Promise<string | null> {
+  const { fetchOpeningHoursNear } = await import("./openingHours.js");
+  return fetchOpeningHoursNear(lat, lng);
+}
+
+async function fetchDeStationHours(
+  stationId: string,
+  apikey: string,
+): Promise<string | null> {
+  const cacheKey = `de:hours:${stationId}`;
+  const cached = cacheGet<{ v: string | null }>(cacheKey);
+  if (cached) return cached.v;
+  try {
+    const params = new URLSearchParams({ id: stationId, apikey });
+    const data = (await fetchJson(
+      `https://creativecommons.tankerkoenig.de/json/detail.php?${params}`,
+    )) as {
+      ok?: boolean;
+      station?: {
+        openingTimes?: {
+          text?: string[];
+          openNow?: boolean;
+        };
+      };
+    };
+    const lines = data.station?.openingTimes?.text?.filter(Boolean) ?? [];
+    const value = lines.length ? lines.join("; ") : null;
+    cacheSet(cacheKey, { v: value });
+    return value;
+  } catch {
+    cacheSet(cacheKey, { v: null });
+    return null;
+  }
+}
+
+export async function fetchOpeningHours(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  return fetchOpeningHoursCached(lat, lng);
 }
 
 export async function fetchCzStations(

@@ -15,8 +15,12 @@ export type ProviderFns = {
     timestamp: string;
     kind: CheckResponse["deutschland"]["kind"];
     stationName?: string;
+    address?: string;
+    openingHours?: string;
+    isOpen?: boolean;
     note?: string;
   }>;
+  fetchOpeningHours?: (lat: number, lng: number) => Promise<string | null>;
   fetchEurCzk: () => Promise<{ kcPerEur: number; source: string; timestamp: string }>;
   fetchCzPrice: (fuelType: string) => Promise<{
     price: number;
@@ -140,6 +144,7 @@ export async function runCheck(
     priceKc: number;
     timestamp: string;
     stale: boolean;
+    openingHours?: string;
   };
 
   const routed = await Promise.all(
@@ -159,7 +164,13 @@ export async function runCheck(
       }
       const destLat = station?.lat ?? crossing.destLat;
       const destLng = station?.lng ?? crossing.destLng;
-      const route = await providers.routeDistance(lat, lng, destLat, destLng);
+      const [route, openingHours] = await Promise.all([
+        providers.routeDistance(lat, lng, destLat, destLng),
+        station && providers.fetchOpeningHours
+          ? providers.fetchOpeningHours(station.lat, station.lng).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (station && openingHours) station.openingHours = openingHours;
       const priceKc = manualKc ?? station?.priceKc ?? czFallback?.price ?? null;
       return { crossing, route, station, destLat, destLng, priceKc };
     }),
@@ -222,13 +233,15 @@ export async function runCheck(
   }
 
   const lohnt = trip.lohntAusflug || trip.lohntSprit;
-  const status = incomplete
-    ? `UNVOLLSTÄNDIG – ${trip.lohntAusflug ? "LOHNT ALS AUSFLUG" : trip.lohntSprit ? "LOHNT SICH" : "LOHNT SICH NICHT"}`
-    : trip.lohntSprit
-      ? "LOHNT SICH (Sprit)"
-      : trip.lohntAusflug
-        ? "LOHNT ALS AUSFLUG"
-        : "LOHNT SICH NICHT (nur Sprit)";
+  const status = !trip.kannHin
+    ? "Rest reicht nicht bis zur Grenze"
+    : incomplete
+      ? `Unvollständig – ${trip.lohntAusflug ? "Ausflug lohnt sich" : trip.lohntSprit ? "lohnt sich" : "lohnt sich nicht"}`
+      : trip.lohntSprit
+        ? "Ja, allein der Sprit lohnt sich"
+        : trip.lohntAusflug
+          ? "Ja, der Ausflug lohnt sich"
+          : "Nein, nur wegen Sprit lohnt es sich nicht";
 
   const routen: RouteOption[] = routed.map((r) => {
     const kc = r.priceKc ?? bestPriceKc;
@@ -248,6 +261,7 @@ export async function runCheck(
       naviUrl: naviUrl(lat, lng, r.destLat, r.destLng),
       stationName: r.station?.name,
       stationAddress: r.station?.address,
+      stationOpeningHours: r.station?.openingHours,
       priceKc: kc,
       priceEur: kcToEur(kc, fx.kcPerEur),
       priceKind: kind,
@@ -265,6 +279,9 @@ export async function runCheck(
     homeLng: lng,
     deutschland: {
       stationName: de.stationName || "Tankstelle",
+      address: de.address,
+      openingHours: de.openingHours,
+      isOpen: de.isOpen,
       fuelType,
       priceEur: de.price,
       source: de.source,
