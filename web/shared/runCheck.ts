@@ -20,7 +20,11 @@ export type ProviderFns = {
     isOpen?: boolean;
     note?: string;
   }>;
-  fetchOpeningHours?: (lat: number, lng: number) => Promise<string | null>;
+  fetchOpeningHours?: (
+    lat: number,
+    lng: number,
+    hint?: { name?: string; address?: string },
+  ) => Promise<string | null>;
   fetchEurCzk: () => Promise<{ kcPerEur: number; source: string; timestamp: string }>;
   fetchCzPrice: (fuelType: string) => Promise<{
     price: number;
@@ -167,7 +171,12 @@ export async function runCheck(
       const [route, openingHours] = await Promise.all([
         providers.routeDistance(lat, lng, destLat, destLng),
         station && providers.fetchOpeningHours
-          ? providers.fetchOpeningHours(station.lat, station.lng).catch(() => null)
+          ? providers
+              .fetchOpeningHours(station.lat, station.lng, {
+                name: station.name,
+                address: station.address,
+              })
+              .catch(() => null)
           : Promise.resolve(null),
       ]);
       if (station && openingHours) station.openingHours = openingHours;

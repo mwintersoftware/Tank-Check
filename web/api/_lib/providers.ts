@@ -201,9 +201,13 @@ export async function fetchDeCheapest(
   }
 }
 
-async function fetchOpeningHoursCached(lat: number, lng: number): Promise<string | null> {
+async function fetchOpeningHoursCached(
+  lat: number,
+  lng: number,
+  hint?: { name?: string; address?: string },
+): Promise<string | null> {
   const { fetchOpeningHoursNear } = await import("./openingHours.js");
-  return fetchOpeningHoursNear(lat, lng);
+  return fetchOpeningHoursNear(lat, lng, hint);
 }
 
 async function fetchDeStationHours(
@@ -239,8 +243,9 @@ async function fetchDeStationHours(
 export async function fetchOpeningHours(
   lat: number,
   lng: number,
+  hint?: { name?: string; address?: string },
 ): Promise<string | null> {
-  return fetchOpeningHoursCached(lat, lng);
+  return fetchOpeningHoursCached(lat, lng, hint);
 }
 
 export async function fetchCzStations(
