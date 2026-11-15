@@ -38,3 +38,136 @@ body::before {
   opacity: 0.07;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
+
+/* —— Wow-Prüfung: fliegende Stationen, Restaurants, Herzen —— */
+.check-wow__sky {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(201, 132, 42, 0.35), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 20%, rgba(47, 93, 58, 0.45), transparent 50%),
+    linear-gradient(160deg, #1a2e1f 0%, #243d2c 55%, #1a2e1f 100%);
+}
+
+.check-wow__bar {
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 0 18px rgba(201, 132, 42, 0.55);
+}
+
+.check-wow__scan {
+  animation: wowScanIn 0.45s ease-out;
+}
+
+.check-wow__fly {
+  position: absolute;
+  left: -40%;
+  top: 42%;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  opacity: 0;
+  animation: wowFly 4.2s linear infinite;
+}
+
+.check-wow__fly--pump {
+  background: rgba(238, 243, 234, 0.95);
+  color: #1a2e1f;
+}
+
+.check-wow__fly--food {
+  background: rgba(201, 132, 42, 0.95);
+  color: #142018;
+}
+
+.check-wow__fly--soft {
+  background: rgba(255, 255, 255, 0.18);
+  color: #eef3ea;
+}
+
+.check-wow__fly--0 { top: 18%; animation-duration: 5.2s; }
+.check-wow__fly--1 { top: 34%; animation-duration: 4.4s; }
+.check-wow__fly--2 { top: 48%; animation-duration: 3.8s; }
+.check-wow__fly--3 { top: 62%; animation-duration: 4.9s; }
+.check-wow__fly--4 { top: 76%; animation-duration: 5.6s; }
+
+.check-wow__heart {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  font-size: 1.15rem;
+  color: #e8a0a0;
+  opacity: 0;
+  animation: wowHeart 3.4s ease-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(139, 46, 31, 0.25));
+}
+
+.check-wow__heart--0 { left: 18%; animation-duration: 3.1s; }
+.check-wow__heart--1 { left: 32%; animation-duration: 3.6s; font-size: 0.9rem; }
+.check-wow__heart--2 { left: 48%; animation-duration: 2.9s; }
+.check-wow__heart--3 { left: 68%; animation-duration: 3.8s; font-size: 1.35rem; }
+
+@keyframes wowFly {
+  0% {
+    transform: translateX(0) translateY(0) rotate(-4deg) scale(0.85);
+    opacity: 0;
+  }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% {
+    transform: translateX(145vw) translateY(-28px) rotate(8deg) scale(1.05);
+    opacity: 0;
+  }
+}
+
+@keyframes wowHeart {
+  0% {
+    transform: translate(-50%, 20px) scale(0.4);
+    opacity: 0;
+  }
+  18% { opacity: 0.95; }
+  100% {
+    transform: translate(calc(-50% + 18px), -160px) scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes wowScanIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes resultPop {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.result-wow {
+  animation: resultPop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-wow__fly,
+  .check-wow__heart,
+  .check-wow__scan,
+  .result-wow {
+    animation: none !important;
+    opacity: 1;
+  }
+}

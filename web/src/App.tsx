@@ -5,13 +5,8 @@ import type { CheckResponse, RouteOption } from "../shared/types";
 import { ageLabel, eur, kc, liters, localWhen, price3 } from "./format";
 import { CookieBanner, LegalLinks, LegalModal, type LegalPage } from "./Legal";
 import { loadLocale, saveLocale, t, type Locale } from "./i18n";
+import { CheckWow, type ProgressState } from "./CheckWow";
 import type { NearbyPlace } from "../shared/types";
-
-type ProgressState = {
-  step: number;
-  pct: number;
-  scanName: string;
-};
 
 type Fuel = "e10" | "e5" | "diesel";
 
@@ -121,6 +116,8 @@ export default function App() {
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
   const [lastCz, setLastCz] = useState<LastCzPrice | null>(loadLastCz);
   const [progress, setProgress] = useState<ProgressState | null>(null);
+  const [wowDone, setWowDone] = useState(false);
+  const [celebrateOuting, setCelebrateOuting] = useState(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const progressTimer = useRef<number | null>(null);
@@ -206,6 +203,8 @@ export default function App() {
     setNeedCz(false);
     setPending(true);
     setResult(null);
+    setWowDone(false);
+    setCelebrateOuting(false);
     startProgressRoll();
     try {
       setProgress((p) => (p ? { ...p, step: 0, pct: 12 } : p));
@@ -251,11 +250,28 @@ export default function App() {
       const body = data as CheckResponse;
       clearProgressTimer();
       const log = body.scanLog?.length ? body.scanLog : SCAN_NAMES;
+      const outing =
+        body.trip?.lohntAusflug === true ||
+        (body.lohntSich && !body.trip?.lohntSprit);
+      setCelebrateOuting(Boolean(outing || body.lohntSich));
       setProgress({
         step: 4,
         pct: 100,
-        scanName: log[log.length - 1] || SCAN_NAMES[0]!,
+        scanName: log[0] || SCAN_NAMES[0]!,
       });
+      setWowDone(true);
+      // Kurz echte Stationsnamen durchrollen
+      let i = 0;
+      const roll = window.setInterval(() => {
+        i += 1;
+        if (i >= log.length) {
+          window.clearInterval(roll);
+          return;
+        }
+        setProgress((p) =>
+          p ? { ...p, scanName: log[i] || p.scanName, pct: 100, step: 4 } : p,
+        );
+      }, 180);
       setResult(body);
       setRouteName(body.routen[0]?.name ?? body.strecke.borderName);
       if (body.tschechien.kind !== "manual" || !opts?.useLastCz) {
@@ -266,11 +282,16 @@ export default function App() {
           fuel: settings.fuel,
         });
       }
-      window.setTimeout(() => setProgress(null), 600);
+      window.setTimeout(() => {
+        window.clearInterval(roll);
+        setProgress(null);
+        setWowDone(false);
+      }, 1600);
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : t(locale, "errUnknown"));
       setProgress(null);
+      setWowDone(false);
     } finally {
       clearProgressTimer();
       setPending(false);
@@ -370,7 +391,12 @@ export default function App() {
         </button>
 
         {progress && (
-          <CheckProgress locale={locale} progress={progress} />
+          <CheckWow
+            locale={locale}
+            progress={progress}
+            celebrateOuting={celebrateOuting}
+            done={wowDone}
+          />
         )}
       </section>
 
@@ -418,66 +444,6 @@ export default function App() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </div>
-  );
-}
-
-function CheckProgress({
-  locale,
-  progress,
-}: {
-  locale: Locale;
-  progress: ProgressState;
-}) {
-  const steps = [
-    t(locale, "progressGps"),
-    t(locale, "progressDe"),
-    t(locale, "progressCz"),
-    t(locale, "progressRoutes"),
-    t(locale, "progressNearby"),
-  ];
-  return (
-    <div
-      className="animate-[fadeUp_0.35s_ease-out] overflow-hidden rounded-2xl border border-[var(--color-moss)]/20 bg-white/80 p-4 shadow-sm"
-      aria-live="polite"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-display text-lg font-bold text-[var(--color-moss-deep)]">
-          {t(locale, "progressTitle")}
-        </p>
-        <span className="text-xs font-semibold text-[var(--color-moss)]">
-          {t(locale, "progressPct", { pct: progress.pct })}
-        </span>
-      </div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-moss)]/10">
-        <div
-          className="h-full rounded-full bg-[var(--color-moss-deep)] transition-[width] duration-500 ease-out"
-          style={{ width: `${progress.pct}%` }}
-        />
-      </div>
-      <p className="mt-3 text-sm font-medium text-[var(--color-ink)]">
-        {steps[progress.step] ?? steps[0]}
-      </p>
-      <p className="mt-1 truncate text-sm text-[var(--color-moss-deep)] animate-[fadeUp_0.4s_ease-out]">
-        {t(locale, "progressScan", { name: progress.scanName })}
-      </p>
-      <ul className="mt-3 space-y-1">
-        {steps.map((label, i) => (
-          <li
-            key={label}
-            className={`text-xs ${
-              i < progress.step
-                ? "text-[var(--color-ok)]"
-                : i === progress.step
-                  ? "font-semibold text-[var(--color-moss-deep)]"
-                  : "text-[var(--color-ink)]/40"
-            }`}
-          >
-            {i < progress.step ? "✓ " : i === progress.step ? "→ " : "· "}
-            {label}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -987,7 +953,7 @@ function ResultCard({
 
   return (
     <article
-      className="mt-7 animate-[fadeUp_0.4s_ease-out] space-y-5 rounded-3xl border border-[var(--color-moss)]/15 bg-white/75 p-5 shadow-[0_20px_50px_-28px_rgba(26,46,31,0.45)] backdrop-blur-sm"
+      className="result-wow mt-7 space-y-5 rounded-3xl border border-[var(--color-moss)]/15 bg-white/75 p-5 shadow-[0_20px_50px_-28px_rgba(26,46,31,0.45)] backdrop-blur-sm"
       aria-live="polite"
     >
       <div>

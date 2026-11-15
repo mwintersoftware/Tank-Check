@@ -23,6 +23,9 @@ const de = {
   progressDone: "Fertig",
   progressScan: "Gerade: {name}",
   progressPct: "{pct} %",
+  wowOuting: "Ausflug mit Herz!",
+  wowReady: "Die besten Spar-Optionen sind bereit.",
+  wowHeartsHint: "Herzen für Quatschen, Essen und den Ausflug …",
   footer:
     "Persönliche Mini-App zum privaten Gebrauch. DE: Stationspreise. CZ: günstigste Tankstelle hinter der Grenze. Kurs: EZB-Referenz. In Kronen zahlen.",
   errNoGps: "Ohne GPS geht die Strecke nicht. Bitte Standort am Gerät anmachen.",
@@ -191,6 +194,9 @@ const cs: Dict = {
   progressDone: "Hotovo",
   progressScan: "Právě: {name}",
   progressPct: "{pct} %",
+  wowOuting: "Výlet se srdcem!",
+  wowReady: "Nejlepší možnosti úspory jsou připravené.",
+  wowHeartsHint: "Srdíčka pro pokec, jídlo a výlet …",
   footer:
     "Osobní miniaplikace pro soukromé použití. DE: ceny u čerpacích. CZ: nejlevnější pumpa za hranicí. Kurz: referenční kurz ECB. Plaťte v korunách.",
   errNoGps: "Bez GPS nejde spočítat trasu. Zapni polohu v zařízení.",
