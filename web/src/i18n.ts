@@ -58,6 +58,13 @@ const de = {
   feeHint: "0,2",
   ausflugLabel: "Ausflug wert €",
   ausflugHint: "Hausnummer",
+  rangeBonusLabel: "CZ-Sprit: +20 % Reichweite",
+  rangeBonusHomeHint:
+    "Mitrechnen – oft weiter gekommen (Beobachtung, keine Garantie).",
+  rangeBonusHint:
+    "Eigene Beobachtung über Jahre: oft ca. 20 % weiter, manchmal ~300 km mehr je Füllung. Keine Labor-Garantie.",
+  rangeBonusOn: "Reichweite +20 % an",
+  rangeBonusOff: "Reichweite +20 % aus",
   settingsHint:
     "Start ist immer dein aktueller Standort (GPS). CZ-Preis holt die App von der günstigsten Tankstelle hinter der Grenze.",
   czPriceLabelNeed: "CZ-Preis Kč/l (nötig, Quelle fehlte)",
@@ -167,7 +174,7 @@ const de = {
     "Die App hilft dir einzuschätzen, ob sich eine Tankfahrt über die Grenze lohnt. Sie ist für den privaten Gebrauch gedacht.",
   privacyLocalTitle: "Was lokal bleibt",
   privacyLocal:
-    "Einstellungen (Sorte, Verbrauch, Restkilometer, Essen, Kartengebühr, Ausflugswert, Sprache), den letzten bekannten CZ-Preis und die Zustimmung zu diesem Hinweis speichert dein Browser auf dem Gerät. Das verlässt dein Gerät nicht über unsere App.",
+    "Einstellungen (Sorte, Verbrauch, Restkilometer, Essen, Kartengebühr, Ausflugswert, CZ-Reichweiten-Option, Sprache), den letzten bekannten CZ-Preis und die Zustimmung zu diesem Hinweis speichert dein Browser auf dem Gerät. Das verlässt dein Gerät nicht über unsere App.",
   privacyLocTitle: "Standort",
   privacyLoc:
     "Wenn du prüfst, fragt der Browser nach deinem Standort. Die Koordinaten gehen nur an unsere Prüf-Schnittstelle, um Strecke und Preise zu berechnen. Ohne deine Freigabe findet keine Standortnutzung statt.",
@@ -240,6 +247,13 @@ const cs: Dict = {
   feeHint: "0,2",
   ausflugLabel: "Výlet má cenu €",
   ausflugHint: "odhad",
+  rangeBonusLabel: "CZ palivo: +20 % dojezd",
+  rangeBonusHomeHint:
+    "Započítat – často dál (zkušenost, bez záruky).",
+  rangeBonusHint:
+    "Vlastní zkušenost za roky: často cca 20 % dál, někdy ~300 km navíc na nádrž. Bez laboratorní záruky.",
+  rangeBonusOn: "dojezd +20 % zapnuto",
+  rangeBonusOff: "dojezd +20 % vypnuto",
   settingsHint:
     "Start je vždy tvoje aktuální poloha (GPS). Cenu v ČR bere aplikace z nejlevnější pumpy za hranicí.",
   czPriceLabelNeed: "Cena ČR Kč/l (nutné, zdroj chyběl)",
@@ -349,7 +363,7 @@ const cs: Dict = {
     "Aplikace pomáhá odhadnout, jestli se vyplatí tankovací cesta přes hranici. Je určena pro soukromé použití.",
   privacyLocalTitle: "Co zůstane lokálně",
   privacyLocal:
-    "Nastavení (palivo, spotřeba, zbývající kilometry, jídlo, poplatek karty, hodnota výletu, jazyk), poslední známou cenu ČR a souhlas s tímto upozorněním ukládá prohlížeč v zařízení. Přes naši aplikaci to zařízení neopustí.",
+    "Nastavení (palivo, spotřeba, zbývající kilometry, jídlo, poplatek karty, hodnota výletu, volba dojezdu CZ, jazyk), poslední známou cenu ČR a souhlas s tímto upozorněním ukládá prohlížeč v zařízení. Přes naši aplikaci to zařízení neopustí.",
   privacyLocTitle: "Poloha",
   privacyLoc:
     "Při kontrole se prohlížeč zeptá na polohu. Souřadnice jdou jen na naši výpočetní službu kvůli trase a cenám. Bez tvého souhlasu se poloha nepoužije.",

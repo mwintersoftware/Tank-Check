@@ -151,6 +151,11 @@ export async function runCheck(
   const fuelRaw = (body.fuelType || cfg.fuelType).toLowerCase();
   const fuelType =
     fuelRaw === "e5" || fuelRaw === "e10" || fuelRaw === "diesel" ? fuelRaw : cfg.fuelType;
+  const rangeBonusRaw =
+    body.czRangeBonusPercent != null && Number.isFinite(body.czRangeBonusPercent)
+      ? Number(body.czRangeBonusPercent)
+      : cfg.czRangeBonusPercent;
+  const czRangeBonusPercent = Math.max(0, Math.min(50, rangeBonusRaw));
   let incomplete = false;
 
   const manualRaw =
@@ -339,12 +344,12 @@ export async function runCheck(
     cardFeePercent: cfg.cardFeePercent,
     mealEur: cfg.mealEur,
     ausflugWertEur: cfg.ausflugWertEur,
-    czRangeBonusPercent: cfg.czRangeBonusPercent,
+    czRangeBonusPercent,
     tollEur: cfg.tollEur,
     minNetSavingEur: cfg.minNetSavingEur,
   };
 
-  /** Nur die besten Spar-Ergebnisse (Top 3 inkl. Reichweiten-Mehrwert). */
+  /** Nur die besten Spar-Ergebnisse (Top 3 inkl. Reichweiten-Mehrwert, falls Option an). */
   const TOP_BEST = 3;
   const scored = routed
     .filter((r) => r.priceKc != null && Number.isFinite(r.priceKc))
@@ -410,8 +415,12 @@ export async function runCheck(
     "Essen ist Kasse. Quatschen und Ausflug stehen extra – unbezahlbar, hier mit Hausnummer.",
     `Euro-Kurs: ${fx.kcPerEur.toFixed(3).replace(".", ",")} Kč je €. In Kronen zahlen, nicht in Euro umrechnen lassen.`,
     "Angezeigt: die drei besten Spar-Optionen. CZ-Preise von frischen Stationsmeldungen.",
-    `Reichweite: eigene Beobachtung über Jahre – CZ-Sprit oft ca. ${cfg.czRangeBonusPercent} % weiter (Gegenwert in der Rechnung). Keine Labor-Garantie, vor Ort kann es abweichen.`,
   ];
+  if (czRangeBonusPercent > 0) {
+    hints.push(
+      `Reichweite (Option an): eigene Beobachtung über Jahre – CZ-Sprit oft ca. ${czRangeBonusPercent} % weiter (Gegenwert in der Rechnung). Keine Labor-Garantie, vor Ort kann es abweichen.`,
+    );
+  }
   if (!trip.kannHin) {
     hints.unshift("Restreichweite reicht nicht bis zur Grenze – vorher in DE nachfüllen oder andere Strecke.");
   }
@@ -488,7 +497,7 @@ export async function runCheck(
       cardFeePercent: cfg.cardFeePercent,
       mealEur: cfg.mealEur,
       ausflugWertEur: cfg.ausflugWertEur,
-      czRangeBonusPercent: cfg.czRangeBonusPercent,
+      czRangeBonusPercent,
       minNetSavingEur: cfg.minNetSavingEur,
       tollEur: cfg.tollEur,
     },

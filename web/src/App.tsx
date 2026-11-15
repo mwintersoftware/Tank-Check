@@ -20,6 +20,8 @@ type Settings = {
   meal: string;
   fee: string;
   ausflug: string;
+  /** Option: beobachteten CZ-Reichweiten-Bonus (~20 %) mitrechnen. */
+  rangeBonus: boolean;
   czManual: string;
 };
 
@@ -37,6 +39,7 @@ function defaultSettings(): Settings {
     meal: String(DEFAULT_CONFIG.mealEur),
     fee: String(DEFAULT_CONFIG.cardFeePercent).replace(".", ","),
     ausflug: String(DEFAULT_CONFIG.ausflugWertEur),
+    rangeBonus: true,
     czManual: "",
   };
 }
@@ -73,6 +76,7 @@ function loadSettings(): Settings {
     if (merged.fuel !== "e5" && merged.fuel !== "e10" && merged.fuel !== "diesel") {
       merged.fuel = d.fuel;
     }
+    merged.rangeBonus = rest.rangeBonus !== false;
     return merged;
   } catch {
     return d;
@@ -216,6 +220,9 @@ export default function App() {
         lat: pos.lat,
         lng: pos.lng,
         fuelType: settings.fuel,
+        czRangeBonusPercent: settings.rangeBonus
+          ? DEFAULT_CONFIG.czRangeBonusPercent
+          : 0,
       };
       const manual = settings.czManual.trim().replace(",", ".");
       if (manual) {
@@ -345,24 +352,62 @@ export default function App() {
         </header>
 
         <section className="space-y-3.5 animate-[fadeUp_0.65s_ease-out]">
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            className="panel-glass w-full rounded-2xl px-4 py-3.5 text-left text-sm text-[var(--color-ink)]/85"
-          >
-            <span className="font-semibold text-[var(--color-moss-deep)]">
-              {t(locale, "yourSetup")}
-            </span>
-            <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
-              {t(locale, "setupLine", {
-                fuel: fuelLabel,
-                cons: settings.cons || "—",
-                km: settings.rangeKm || "—",
-                meal: settings.meal || "—",
-                fee: settings.fee || "—",
-              })}
-            </span>
-          </button>
+          <div className="panel-glass overflow-hidden rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              className="w-full px-4 py-3.5 text-left text-sm text-[var(--color-ink)]/85"
+            >
+              <span className="font-semibold text-[var(--color-moss-deep)]">
+                {t(locale, "yourSetup")}
+              </span>
+              <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
+                {t(locale, "setupLine", {
+                  fuel: fuelLabel,
+                  cons: settings.cons || "—",
+                  km: settings.rangeKm || "—",
+                  meal: settings.meal || "—",
+                  fee: settings.fee || "—",
+                })}
+              </span>
+            </button>
+            <div className="border-t border-[var(--color-moss)]/12 px-4 py-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={settings.rangeBonus}
+                onClick={() =>
+                  setSettings((s) => ({ ...s, rangeBonus: !s.rangeBonus }))
+                }
+                className="flex w-full items-center gap-3 text-left"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-[var(--color-moss-deep)]">
+                    {t(locale, "rangeBonusLabel")}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-snug text-[var(--color-ink)]/55">
+                    {t(locale, "rangeBonusHomeHint")}
+                  </span>
+                </span>
+                <span
+                  className={
+                    "relative h-7 w-12 shrink-0 rounded-full transition-colors " +
+                    (settings.rangeBonus
+                      ? "bg-[var(--color-ok)]"
+                      : "bg-[var(--color-mist)]")
+                  }
+                  aria-hidden
+                >
+                  <span
+                    className={
+                      "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform " +
+                      (settings.rangeBonus ? "translate-x-5" : "translate-x-0.5")
+                    }
+                  />
+                </span>
+              </button>
+            </div>
+          </div>
 
           {error && (
             <div
@@ -426,6 +471,9 @@ export default function App() {
               mealEur={num(settings.meal, DEFAULT_CONFIG.mealEur)}
               cardFeePercent={num(settings.fee, DEFAULT_CONFIG.cardFeePercent)}
               ausflugWertEur={num(settings.ausflug, DEFAULT_CONFIG.ausflugWertEur)}
+              czRangeBonusPercent={
+                settings.rangeBonus ? DEFAULT_CONFIG.czRangeBonusPercent : 0
+              }
             />
           </div>
         )}
@@ -738,6 +786,37 @@ function SettingsDrawer({
             hint={t(locale, "ausflugHint")}
           />
 
+          <button
+            type="button"
+            role="switch"
+            aria-checked={draft.rangeBonus}
+            onClick={() => patch({ rangeBonus: !draft.rangeBonus })}
+            className="flex w-full items-center gap-3 rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-3 text-left"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-[var(--color-moss-deep)]">
+                {t(locale, "rangeBonusLabel")}
+              </span>
+              <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
+                {t(locale, "rangeBonusHint")}
+              </span>
+            </span>
+            <span
+              className={
+                "relative h-7 w-12 shrink-0 rounded-full transition-colors " +
+                (draft.rangeBonus ? "bg-[var(--color-ok)]" : "bg-[var(--color-mist)]")
+              }
+              aria-hidden
+            >
+              <span
+                className={
+                  "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform " +
+                  (draft.rangeBonus ? "translate-x-5" : "translate-x-0.5")
+                }
+              />
+            </span>
+          </button>
+
           <p className="text-xs text-[var(--color-ink)]/55">{t(locale, "settingsHint")}</p>
 
           <label className="block text-sm font-semibold text-[var(--color-moss-deep)]">
@@ -808,6 +887,7 @@ function ResultCard({
   mealEur,
   cardFeePercent,
   ausflugWertEur,
+  czRangeBonusPercent,
 }: {
   locale: Locale;
   data: CheckResponse;
@@ -818,6 +898,7 @@ function ResultCard({
   mealEur: number;
   cardFeePercent: number;
   ausflugWertEur: number;
+  czRangeBonusPercent: number;
 }) {
   const [shareNote, setShareNote] = useState<string | null>(null);
 
@@ -852,8 +933,7 @@ function ResultCard({
         cardFeePercent,
         mealEur,
         ausflugWertEur,
-        czRangeBonusPercent:
-          data.annahmen.czRangeBonusPercent ?? DEFAULT_CONFIG.czRangeBonusPercent,
+        czRangeBonusPercent,
         tollEur: data.annahmen.tollEur,
         minNetSavingEur: data.annahmen.minNetSavingEur,
       }),
@@ -866,6 +946,7 @@ function ResultCard({
       cardFeePercent,
       mealEur,
       ausflugWertEur,
+      czRangeBonusPercent,
     ],
   );
 
@@ -884,24 +965,27 @@ function ResultCard({
   const czHours = selected.stationOpeningHours;
   const naviHref = safeNaviHref(selected.naviUrl);
 
-  const rangePct =
-    data.annahmen.czRangeBonusPercent ?? DEFAULT_CONFIG.czRangeBonusPercent;
-
   const hints = useMemo(() => {
     const list = [
       t(locale, "hintOutbound"),
       t(locale, "hintFillRoom"),
       t(locale, "hintMealOuting"),
-      t(locale, "hintRangeBonus", {
-        pct: rangePct,
-        km: Math.round(trip.extraRangeKm),
-        eur: eur(trip.rangeBonusWertEur),
-      }),
       t(locale, "hintFx", {
         rate: data.kursKcProEur.toFixed(3).replace(".", ","),
       }),
       t(locale, "hintStationPrice"),
     ];
+    if (czRangeBonusPercent > 0) {
+      list.splice(
+        3,
+        0,
+        t(locale, "hintRangeBonus", {
+          pct: czRangeBonusPercent,
+          km: Math.round(trip.extraRangeKm),
+          eur: eur(trip.rangeBonusWertEur),
+        }),
+      );
+    }
     if (!trip.kannHin) list.unshift(t(locale, "hintRangeShort"));
     if (data.tschechien.note?.includes("7 Tage") || data.tschechien.note?.includes("7 dní")) {
       list.unshift(t(locale, "hintStale"));
@@ -918,7 +1002,7 @@ function ResultCard({
     trip.kannHin,
     trip.extraRangeKm,
     trip.rangeBonusWertEur,
-    rangePct,
+    czRangeBonusPercent,
     selected.priceTimestamp,
   ]);
 
@@ -932,12 +1016,16 @@ function ResultCard({
         : `${t(locale, "openingHours")}: ${t(locale, "hoursUnknown")}`,
       `${t(locale, "germany")}: ${price3(data.deutschland.priceEur)} €/l (${ageLabel(data.deutschland.timestamp, locale)})`,
       `${t(locale, "czechiaFx")}: ${kc(selected.priceKc)} Kč/l (${ageLabel(selected.priceTimestamp, locale)})`,
-      t(locale, "shareRangeBonus", {
-        km: Math.round(trip.extraRangeKm),
-        eur: eur(trip.rangeBonusWertEur),
-      }),
-      t(locale, "priceGuarantee"),
     ];
+    if (czRangeBonusPercent > 0) {
+      lines.push(
+        t(locale, "shareRangeBonus", {
+          km: Math.round(trip.extraRangeKm),
+          eur: eur(trip.rangeBonusWertEur),
+        }),
+      );
+    }
+    lines.push(t(locale, "priceGuarantee"));
     if (naviHref) lines.push(naviHref);
     return lines.filter(Boolean).join("\n");
   }, [
@@ -951,6 +1039,7 @@ function ResultCard({
     naviHref,
     trip.extraRangeKm,
     trip.rangeBonusWertEur,
+    czRangeBonusPercent,
   ]);
 
   async function shareNative() {
@@ -1202,19 +1291,19 @@ function ResultCard({
             need: eur(trip.noetigerAusflugWertEur),
           })}
         />
-        <Row
-          label={t(locale, "rangeBonus")}
-          value={t(locale, "rangeBonusValue", {
-            km: Math.round(trip.extraRangeKm),
-            eur: eur(trip.rangeBonusWertEur),
-          })}
-          meta={t(locale, "rangeBonusMeta", {
-            pct:
-              data.annahmen.czRangeBonusPercent ??
-              DEFAULT_CONFIG.czRangeBonusPercent,
-            total: eur(trip.mitReichweite),
-          })}
-        />
+        {czRangeBonusPercent > 0 && (
+          <Row
+            label={t(locale, "rangeBonus")}
+            value={t(locale, "rangeBonusValue", {
+              km: Math.round(trip.extraRangeKm),
+              eur: eur(trip.rangeBonusWertEur),
+            })}
+            meta={t(locale, "rangeBonusMeta", {
+              pct: czRangeBonusPercent,
+              total: eur(trip.mitReichweite),
+            })}
+          />
+        )}
       </dl>
 
       <ul className="space-y-1 text-xs text-[var(--color-ink)]/55">

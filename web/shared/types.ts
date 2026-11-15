@@ -5,6 +5,8 @@ export type CheckRequest = {
   lng: number;
   fuelType?: "e5" | "e10" | "diesel";
   czPriceKc?: number;
+  /** Optional: 0 = aus, sonst % Reichweiten-Bonus (z. B. 20). */
+  czRangeBonusPercent?: number;
 };
 
 export type RouteOption = {
