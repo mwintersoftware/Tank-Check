@@ -195,6 +195,12 @@ function DatenschutzBody({ locale }: { locale: Locale }) {
       </section>
       <section>
         <h2 className="font-semibold text-[var(--color-moss-deep)]">
+          {t(locale, "privacyHistoryTitle")}
+        </h2>
+        <p className="mt-1">{t(locale, "privacyHistory")}</p>
+      </section>
+      <section>
+        <h2 className="font-semibold text-[var(--color-moss-deep)]">
           {t(locale, "privacyHostTitle")}
         </h2>
         <p className="mt-1">{t(locale, "privacyHost")}</p>

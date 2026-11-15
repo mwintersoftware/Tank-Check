@@ -9,13 +9,93 @@ function tankCheckApi(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || "";
-        if (!url.startsWith("/api/check") && !url.startsWith("/api/nearby")) {
+        if (
+          !url.startsWith("/api/check") &&
+          !url.startsWith("/api/nearby") &&
+          !url.startsWith("/api/outing-suggest") &&
+          !url.startsWith("/api/cron/snapshot")
+        ) {
           return next();
         }
         try {
           const env = loadEnv(server.config.mode, server.config.envDir, "");
           for (const [k, v] of Object.entries(env)) {
             if (!(k in process.env)) process.env[k] = v;
+          }
+
+          if (url.startsWith("/api/cron/snapshot")) {
+            const secret = process.env.CRON_SECRET?.trim();
+            const u = new URL(url, "http://localhost");
+            const auth = req.headers.authorization;
+            const qSecret = u.searchParams.get("secret");
+            const ok =
+              secret &&
+              (auth === `Bearer ${secret}` || qSecret === secret);
+            if (!ok) {
+              res.statusCode = 401;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ error: "Nicht autorisiert" }));
+              return;
+            }
+            const { runPriceSnapshot } = await import("./api/_lib/snapshotPrices.ts");
+            const result = await runPriceSnapshot();
+            res.statusCode = result.ok ? 200 : result.skipped ? 503 : 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(result));
+            return;
+          }
+
+          if (url.startsWith("/api/outing-suggest")) {
+            const { assertRateLimit, publicErrorMessage } =
+              await import("./shared/validate.ts");
+            assertRateLimit(req.socket.remoteAddress || "dev");
+            const u = new URL(url, "http://localhost");
+            const fuelRaw = (u.searchParams.get("fuelType") || "e10").toLowerCase();
+            const fuelType =
+              fuelRaw === "e5" || fuelRaw === "e10" || fuelRaw === "diesel"
+                ? fuelRaw
+                : "e10";
+            const { suggestOutingDays } = await import("./api/_lib/priceDb.ts");
+            const base = await suggestOutingDays({ fuelType });
+            const WEEKDAYS_DE = [
+              "Sonntag",
+              "Montag",
+              "Dienstag",
+              "Mittwoch",
+              "Donnerstag",
+              "Freitag",
+              "Samstag",
+            ];
+            const dateRaw = u.searchParams.get("date") || "";
+            const picked = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : null;
+            let pickedWeekday: number | null = null;
+            let pickedSpread: number | null = null;
+            let pickedRank: number | null = null;
+            if (picked) {
+              pickedWeekday = new Date(`${picked}T12:00:00Z`).getUTCDay();
+              const hit = base.weekdaySpreads.find((w) => w.weekday === pickedWeekday);
+              if (hit) {
+                pickedSpread = hit.avgSpreadEur;
+                pickedRank =
+                  base.weekdaySpreads.findIndex((w) => w.weekday === pickedWeekday) + 1;
+              }
+            }
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(
+              JSON.stringify({
+                ...base,
+                fuelType,
+                pickedDate: picked,
+                pickedWeekday,
+                pickedWeekdayLabel:
+                  pickedWeekday != null ? WEEKDAYS_DE[pickedWeekday] : null,
+                pickedAvgSpreadEur: pickedSpread,
+                pickedRank,
+                weekdayLabels: WEEKDAYS_DE,
+              }),
+            );
+            return;
           }
 
           if (url.startsWith("/api/nearby")) {

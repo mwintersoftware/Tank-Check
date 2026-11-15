@@ -409,6 +409,8 @@ export default function App() {
             </div>
           </div>
 
+          <OutingPlanCard locale={locale} fuelType={settings.fuel} />
+
           {error && (
             <div
               ref={errorRef}
@@ -842,6 +844,154 @@ function SettingsDrawer({
           </button>
         </div>
       </aside>
+    </div>
+  );
+}
+
+type OutingSuggestPayload = {
+  configured: boolean;
+  ready: boolean;
+  sampleBuckets: number;
+  minBuckets: number;
+  bestWeekdays: number[];
+  suggestedDates: string[];
+  note: string;
+  weekdayLabels: string[];
+  pickedDate: string | null;
+  pickedWeekdayLabel: string | null;
+  pickedAvgSpreadEur: number | null;
+  pickedRank: number | null;
+};
+
+function OutingPlanCard({
+  locale,
+  fuelType,
+}: {
+  locale: Locale;
+  fuelType: Fuel;
+}) {
+  const today = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+  const [date, setDate] = useState(today);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<OutingSuggestPayload | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const q = new URLSearchParams({
+      fuelType,
+      date,
+    });
+    fetch(`/api/outing-suggest?${q}`)
+      .then(async (res) => {
+        const body = (await res.json()) as OutingSuggestPayload & { error?: string };
+        if (!res.ok) throw new Error(body.error || "fail");
+        if (!cancelled) setData(body);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setData({
+            configured: false,
+            ready: false,
+            sampleBuckets: 0,
+            minBuckets: 24,
+            bestWeekdays: [],
+            suggestedDates: [],
+            note: "",
+            weekdayLabels: [],
+            pickedDate: date,
+            pickedWeekdayLabel: null,
+            pickedAvgSpreadEur: null,
+            pickedRank: null,
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, fuelType]);
+
+  const dayNames =
+    data?.bestWeekdays
+      .map((wd) => data.weekdayLabels[wd])
+      .filter(Boolean)
+      .join(", ") || t(locale, "outingNoDates");
+  const dates =
+    data?.suggestedDates?.length
+      ? data.suggestedDates.join(", ")
+      : t(locale, "outingNoDates");
+
+  let detail: string | null = null;
+  if (data?.configured && data.pickedDate && data.pickedWeekdayLabel) {
+    if (data.pickedAvgSpreadEur == null) {
+      detail = t(locale, "outingPickedUnknown");
+    } else if (data.pickedRank != null && data.pickedRank <= 3) {
+      detail = t(locale, "outingPickedGood", {
+        date: data.pickedDate,
+        weekday: data.pickedWeekdayLabel,
+        spread: data.pickedAvgSpreadEur.toFixed(3).replace(".", ","),
+        rank: data.pickedRank,
+      });
+    } else {
+      detail = t(locale, "outingPickedWeak", {
+        date: data.pickedDate,
+        weekday: data.pickedWeekdayLabel,
+        spread: data.pickedAvgSpreadEur.toFixed(3).replace(".", ","),
+      });
+    }
+  }
+
+  return (
+    <div className="panel-glass rounded-2xl px-4 py-3.5">
+      <p className="font-semibold text-[var(--color-moss-deep)]">
+        {t(locale, "outingPlanTitle")}
+      </p>
+      <p className="mt-0.5 text-xs text-[var(--color-ink)]/55">
+        {t(locale, "outingPlanHint")}
+      </p>
+      <label className="mt-3 block text-sm font-semibold text-[var(--color-moss-deep)]">
+        {t(locale, "outingDateLabel")}
+        <input
+          type="date"
+          min={today}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-2.5 text-base outline-none focus:border-[var(--color-moss)]"
+        />
+      </label>
+      <div className="mt-2 space-y-1.5 text-xs leading-snug text-[var(--color-ink)]/70">
+        {loading && <p>{t(locale, "outingSuggestLoading")}</p>}
+        {!loading && data && !data.configured && (
+          <p>{t(locale, "outingNotConfigured")}</p>
+        )}
+        {!loading && data?.configured && !data.ready && (
+          <p>
+            {t(locale, "outingCollecting", {
+              n: data.sampleBuckets,
+              min: data.minBuckets,
+            })}
+          </p>
+        )}
+        {!loading && data?.configured && data.ready && (
+          <p>
+            {t(locale, "outingReady", {
+              days: dayNames,
+              dates,
+            })}
+          </p>
+        )}
+        {!loading && detail && <p>{detail}</p>}
+        <p className="text-[var(--color-ink)]/45">{t(locale, "outingDisclaimer")}</p>
+      </div>
     </div>
   );
 }

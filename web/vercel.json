@@ -1,4 +1,14 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/snapshot",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot",
+      "schedule": "0 14 * * *"
+    }
+  ],
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "headers": [
     {

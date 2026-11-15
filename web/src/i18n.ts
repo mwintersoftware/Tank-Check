@@ -17,6 +17,26 @@ const de = {
     "{fuel} · {cons} l/100 km · noch {km} km im Tank · Essen {meal} € · Karte {fee} %",
   checking: "Prüfe …",
   checkNow: "Jetzt prüfen",
+  outingPlanTitle: "Ausflug planen",
+  outingPlanHint:
+    "Datum wählen – Vorschlag aus gespeicherten Spreads (DE−CZ). Kein Zukunftspreis.",
+  outingDateLabel: "Geplanter Tag",
+  outingSuggestLoading: "Hole Hinweis …",
+  outingCollecting:
+    "Preise werden erst gesammelt ({n}/{min}). Vorschläge kommen, sobald genug Tage da sind.",
+  outingNotConfigured:
+    "Preishistorie ist noch nicht verbunden – Vorschläge kommen, sobald der Speicher läuft.",
+  outingReady:
+    "Historisch oft günstig: {days}. Vorgeschlagene Tage: {dates}.",
+  outingPickedGood:
+    "{date} ({weekday}): Spread bisher ca. {spread} €/l – Rang {rank} von 7 Wochentagen.",
+  outingPickedWeak:
+    "{date} ({weekday}): bisher eher schwächerer Spread (ca. {spread} €/l).",
+  outingPickedUnknown:
+    "Für diesen Wochentag noch zu wenig Daten.",
+  outingNoDates: "noch keine",
+  outingDisclaimer:
+    "Nur aus Vergangenheit. Tankstelle und Preis vor Ort prüfen.",
   progressTitle: "Prüfung läuft",
   progressGps: "Standort holen …",
   progressDe: "DE-Preis prüfen …",
@@ -181,6 +201,9 @@ const de = {
   privacyExtTitle: "Externe Abrufe",
   privacyExt:
     "Zur Berechnung werden aktuelle Preise, Wechselkurs, Straßenentfernung und Kartenausschnitte von öffentlichen Quellen und Diensten geladen. Dabei können technische Verbindungsdaten (z. B. IP-Adresse) beim jeweiligen Betreiber anfallen. Es werden keine Werbe- oder Analyse-Cookies von uns gesetzt.",
+  privacyHistoryTitle: "Preishistorie",
+  privacyHistory:
+    "Für Hinweise zu günstigen Ausflugstagen speichern wir regelmäßig anonyme Preis-Snapshots (Kraftstoffsorte, Preis, ungefährer Ort/Station, Zeitstempel, Wechselkurs) in einem Speicher- und Datenbankdienst. Keine Namen, keine Konten, kein Tracking. Zweck: nur Muster DE−CZ über Wochentage.",
   privacyHostTitle: "Hosting",
   privacyHost:
     "Die Webseite liegt bei einem Hosting-Anbieter. Beim Aufruf entstehen übliche Server-Logs (Zeit, IP, aufgerufene Seite). Details stehen in der Datenschutzerklärung des Hosting-Anbieters.",
@@ -206,6 +229,22 @@ const cs: Dict = {
     "{fuel} · {cons} l/100 km · ještě {km} km v nádrži · jídlo {meal} € · karta {fee} %",
   checking: "Počítám …",
   checkNow: "Zkontrolovat",
+  outingPlanTitle: "Naplánovat výlet",
+  outingPlanHint:
+    "Vyber datum – návrh z uložených rozdílů (DE−CZ). Nejde o budoucí cenu.",
+  outingDateLabel: "Plánovaný den",
+  outingSuggestLoading: "Načítám tip …",
+  outingCollecting:
+    "Ceny se teprve sbírají ({n}/{min}). Návrhy přijdou, až bude dost dní.",
+  outingNotConfigured: "Úložiště historie cen ještě není připojené.",
+  outingReady: "Historicky často výhodné: {days}. Navrhované dny: {dates}.",
+  outingPickedGood:
+    "{date} ({weekday}): rozdíl dosud cca {spread} €/l – pořadí {rank} ze 7 dnů.",
+  outingPickedWeak:
+    "{date} ({weekday}): zatím spíš slabší rozdíl (cca {spread} €/l).",
+  outingPickedUnknown: "Pro tento den v týdnu je zatím málo dat.",
+  outingNoDates: "zatím žádné",
+  outingDisclaimer: "Jen z minulosti. Cenu a stanici vždy ověř na místě.",
   progressTitle: "Kontrola běží",
   progressGps: "Načítám polohu …",
   progressDe: "Kontroluji cenu DE …",
@@ -370,6 +409,9 @@ const cs: Dict = {
   privacyExtTitle: "Externí načítání",
   privacyExt:
     "Pro výpočet se načítají aktuální ceny, kurz, silniční vzdálenost a výřez mapy z veřejných zdrojů a služeb. U jejich provozovatelů mohou vzniknout technické údaje o spojení (např. IP adresa). My nenastavujeme reklamní ani analytické cookies.",
+  privacyHistoryTitle: "Historie cen",
+  privacyHistory:
+    "Pro tipy na výhodné dny výletu ukládáme pravidelně anonymní snímky cen (palivo, cena, přibližné místo/stanice, čas, kurz) ve službě pro úložiště a databázi. Bez jmen, bez účtů, bez sledování. Účel: jen vzorce DE−CZ podle dnů v týdnu.",
   privacyHostTitle: "Hosting",
   privacyHost:
     "Web běží u poskytovatele hostingu. Při návštěvě vznikají běžné serverové záznamy (čas, IP, stránka). Podrobnosti jsou v prohlášení o ochraně údajů poskytovatele hostingu.",
