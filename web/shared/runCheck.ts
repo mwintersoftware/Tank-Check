@@ -396,14 +396,8 @@ export async function runCheck(
     };
   });
 
-  let nearby: CheckResponse["nearby"] = { restaurants: [], shops: [] };
-  if (providers.fetchNearbyPlaces) {
-    try {
-      nearby = await providers.fetchNearbyPlaces(best.destLat, best.destLng);
-    } catch {
-      /* optional */
-    }
-  }
+  // Nähe-Orte lädt die UI separat (/api/nearby), damit die Prüfung nicht hängen bleibt.
+  const nearby: CheckResponse["nearby"] = { restaurants: [], shops: [] };
 
   const hints = [
     "Hinweg: Rest im Tank (schon bezahlt). Rückweg: CZ-Sprit inkl. Kartengebühr.",

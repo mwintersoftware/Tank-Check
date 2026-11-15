@@ -79,6 +79,7 @@ const de = {
   nearbyMap: "Karte",
   nearbyWeb: "Website",
   nearbyNone: "Keine passenden Orte gefunden.",
+  nearbyLoading: "Suche Restaurants & Einkaufen in der Nähe …",
   nearbyReco: "empfohlen",
   nearbyHint:
     "Auswahl nach vollständigen Angaben (Telefon, Öffnungszeiten) und Sterne-Tags in Kartendaten – keine Garantie für Bewertungen.",
@@ -246,6 +247,7 @@ const cs: Dict = {
   nearbyMap: "Mapa",
   nearbyWeb: "Web",
   nearbyNone: "Nic vhodného nenalezeno.",
+  nearbyLoading: "Hledám restaurace a nákupy v okolí …",
   nearbyReco: "doporučeno",
   nearbyHint:
     "Výběr podle úplných údajů (telefon, otevírací doba) a hvězdiček v mapových datech – bez záruky hodnocení.",

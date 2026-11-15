@@ -8,11 +8,34 @@ function tankCheckApi(): Plugin {
     name: "tank-check-api",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url?.startsWith("/api/check")) return next();
+        const url = req.url || "";
+        if (!url.startsWith("/api/check") && !url.startsWith("/api/nearby")) {
+          return next();
+        }
         try {
           const env = loadEnv(server.config.mode, server.config.envDir, "");
           for (const [k, v] of Object.entries(env)) {
             if (!(k in process.env)) process.env[k] = v;
+          }
+
+          if (url.startsWith("/api/nearby")) {
+            const { assertRateLimit, ValidationError, publicErrorMessage } =
+              await import("./shared/validate.ts");
+            assertRateLimit(req.socket.remoteAddress || "dev");
+            const u = new URL(url, "http://localhost");
+            const lat = Number(u.searchParams.get("lat"));
+            const lng = Number(u.searchParams.get("lng"));
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+              throw Object.assign(new Error("lat und lng sind erforderlich."), {
+                name: "ValidationError",
+              });
+            }
+            const { fetchNearbyPlaces } = await import("./api/_lib/nearbyPlaces.ts");
+            const nearby = await fetchNearbyPlaces(lat, lng);
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(nearby));
+            return;
           }
 
           const chunks: Buffer[] = [];
@@ -60,7 +83,6 @@ function tankCheckApi(): Plugin {
             fetchCzStationsFresh: providers.fetchCzStationsFresh,
             fetchOpeningHours: providers.fetchOpeningHours,
             fetchOpeningHoursBatch: providers.fetchOpeningHoursBatch,
-            fetchNearbyPlaces: providers.fetchNearbyPlaces,
             manualCzPrice: providers.manualCzPrice,
             routeDistance: providers.routeDistance,
           });

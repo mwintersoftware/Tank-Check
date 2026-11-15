@@ -484,23 +484,52 @@ function CheckProgress({
 
 function NearbyBlock({
   locale,
-  restaurants,
-  shops,
+  lat,
+  lng,
 }: {
   locale: Locale;
-  restaurants: NearbyPlace[];
-  shops: NearbyPlace[];
+  lat: number;
+  lng: number;
 }) {
-  if (!restaurants.length && !shops.length) {
-    return (
-      <div className="rounded-2xl border border-[var(--color-moss)]/15 bg-white/60 px-4 py-3 text-sm text-[var(--color-ink)]/55">
-        <p className="font-semibold text-[var(--color-moss-deep)]">
-          {t(locale, "nearbyTitle")}
-        </p>
-        <p className="mt-1">{t(locale, "nearbyNone")}</p>
-      </div>
-    );
-  }
+  const [restaurants, setRestaurants] = useState<NearbyPlace[]>([]);
+  const [shops, setShops] = useState<NearbyPlace[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setRestaurants([]);
+    setShops([]);
+    const q = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+    });
+    fetch(`/api/nearby?${q}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("nearby");
+        return res.json() as Promise<{
+          restaurants?: NearbyPlace[];
+          shops?: NearbyPlace[];
+        }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setRestaurants(data.restaurants ?? []);
+        setShops(data.shops ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRestaurants([]);
+          setShops([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng]);
 
   function PlaceList({
     title,
@@ -518,7 +547,7 @@ function NearbyBlock({
         <ul className="mt-2 space-y-2.5">
           {places.map((p) => (
             <li
-              key={`${p.kind}-${p.name}`}
+              key={`${p.kind}-${p.name}-${p.mapUrl}`}
               className="rounded-xl border border-[var(--color-moss)]/12 bg-white/70 px-3 py-2.5"
             >
               <p className="font-medium text-[var(--color-ink)]">
@@ -570,7 +599,10 @@ function NearbyBlock({
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[var(--color-moss)]/15 bg-gradient-to-b from-white/80 to-[var(--color-moss)]/5 px-4 py-4">
+    <div
+      id="nearby"
+      className="space-y-4 rounded-2xl border-2 border-[var(--color-moss)]/25 bg-gradient-to-b from-white/90 to-[var(--color-moss)]/8 px-4 py-4 shadow-sm"
+    >
       <div>
         <p className="font-display text-xl font-bold text-[var(--color-moss-deep)]">
           {t(locale, "nearbyTitle")}
@@ -579,8 +611,18 @@ function NearbyBlock({
           {t(locale, "nearbyHint")}
         </p>
       </div>
-      <PlaceList title={t(locale, "nearbyRestaurants")} places={restaurants} />
-      <PlaceList title={t(locale, "nearbyShops")} places={shops} />
+      {loading ? (
+        <p className="text-sm font-medium text-[var(--color-moss-deep)] animate-pulse">
+          {t(locale, "nearbyLoading")}
+        </p>
+      ) : !restaurants.length && !shops.length ? (
+        <p className="text-sm text-[var(--color-ink)]/55">{t(locale, "nearbyNone")}</p>
+      ) : (
+        <>
+          <PlaceList title={t(locale, "nearbyRestaurants")} places={restaurants} />
+          <PlaceList title={t(locale, "nearbyShops")} places={shops} />
+        </>
+      )}
     </div>
   );
 }
@@ -1032,8 +1074,8 @@ function ResultCard({
 
       <NearbyBlock
         locale={locale}
-        restaurants={data.nearby?.restaurants ?? []}
-        shops={data.nearby?.shops ?? []}
+        lat={selected.destLat}
+        lng={selected.destLng}
       />
 
       <div className="overflow-hidden rounded-2xl border border-[var(--color-moss)]/15">
