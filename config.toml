@@ -10,9 +10,9 @@ min_net_saving_eur = 5.00
 home_search_radius_km = 5.0
 toll_eur = 0.0
 time_value_eur_per_h = 0.0
-remaining_range_km = 450.0   # Rest im Tank, bevor du losfährst
-card_fee_percent = 1.75      # typische Kreditkarten-Auslandsgebühr (in Kč zahlen)
-meal_eur = 12.0              # Essen für 2
+remaining_range_km = 200.0   # Rest im Tank, bevor du losfährst
+card_fee_percent = 0.2       # Kreditkarten-Auslandsgebühr (in Kč zahlen)
+meal_eur = 20.0              # Essen für 2
 ausflug_wert_eur = 24.0      # Hausnummer für Quatschen/Ausflug (unbezahlbar)
 
 # Optional: fester CZ-Preis in Kč/l (sonst ČSÚ-Durchschnitt, sonst Nachfrage)

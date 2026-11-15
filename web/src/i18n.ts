@@ -29,12 +29,12 @@ const de = {
   fuel: "Sorte",
   diesel: "Diesel",
   rangeLabel: "Noch km im Tank",
-  rangeHint: "z. B. 450",
+  rangeHint: "z. B. 200",
   rangeNote:
     "Was der Tacho zeigt, bevor du losfährst. Nicht die Tankgröße (die ist 62 l).",
   mealLabel: "Essen € (2 Pers.)",
   feeLabel: "Kartengebühr %",
-  feeHint: "1,75",
+  feeHint: "0,2",
   ausflugLabel: "Ausflug wert €",
   ausflugHint: "Hausnummer",
   settingsHint:
@@ -153,12 +153,12 @@ const cs: Dict = {
   fuel: "Palivo",
   diesel: "Nafta",
   rangeLabel: "Ještě km v nádrži",
-  rangeHint: "např. 450",
+  rangeHint: "např. 200",
   rangeNote:
     "Co ukazuje palubní počítač, než vyjedeš. Ne velikost nádrže (ta je 62 l).",
   mealLabel: "Jídlo € (2 os.)",
   feeLabel: "Poplatek karty %",
-  feeHint: "1,75",
+  feeHint: "0,2",
   ausflugLabel: "Výlet má cenu €",
   ausflugHint: "odhad",
   settingsHint:

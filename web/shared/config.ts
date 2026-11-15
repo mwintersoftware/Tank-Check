@@ -39,9 +39,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   homeSearchRadiusKm: 5,
   tollEur: 0,
   timeValueEurPerH: 0,
-  remainingRangeKm: 450,
-  cardFeePercent: 1.75,
-  mealEur: 12,
+  remainingRangeKm: 200,
+  cardFeePercent: 0.2,
+  mealEur: 20,
   ausflugWertEur: 24,
   borderCrossings: [
     {

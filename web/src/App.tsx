@@ -408,7 +408,7 @@ function SettingsDrawer({
             label={t(locale, "mealLabel")}
             value={draft.meal}
             onChange={(v) => patch({ meal: v })}
-            hint="12"
+            hint="20"
           />
           <Field
             label={t(locale, "feeLabel")}
