@@ -16,16 +16,43 @@ function tankCheckApi(): Plugin {
           }
 
           const chunks: Buffer[] = [];
-          await new Promise<void>((resolve) => {
-            req.on("data", (c) => chunks.push(c));
+          await new Promise<void>((resolve, reject) => {
+            let total = 0;
+            req.on("data", (c: Buffer) => {
+              total += c.length;
+              if (total > 4096) {
+                reject(Object.assign(new Error("Anfrage zu groß."), { name: "ValidationError" }));
+                return;
+              }
+              chunks.push(c);
+            });
             req.on("end", () => resolve());
+            req.on("error", reject);
           });
           const raw = Buffer.concat(chunks).toString("utf8");
-          const body = raw ? JSON.parse(raw) : {};
+          let body: unknown = {};
+          if (raw) {
+            try {
+              body = JSON.parse(raw);
+            } catch {
+              throw Object.assign(new Error("Ungültiges JSON."), { name: "ValidationError" });
+            }
+          }
 
-          const { runCheck, CzPriceRequiredError } = await import("./shared/runCheck.ts");
+          const {
+            runCheck,
+            CzPriceRequiredError,
+          } = await import("./shared/runCheck.ts");
+          const {
+            assertRateLimit,
+            parseCheckBody,
+            publicErrorMessage,
+            ValidationError,
+          } = await import("./shared/validate.ts");
           const providers = await import("./api/_lib/providers.ts");
-          const payload = await runCheck(body, {
+
+          assertRateLimit(req.socket.remoteAddress || "dev");
+          const payload = await runCheck(parseCheckBody(body), {
             fetchDeCheapest: providers.fetchDeCheapest,
             fetchEurCzk: providers.fetchEurCzk,
             fetchCzPrice: providers.fetchCzPrice,
@@ -35,9 +62,11 @@ function tankCheckApi(): Plugin {
           });
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");
+          res.setHeader("X-Content-Type-Options", "nosniff");
           res.end(JSON.stringify(payload));
         } catch (err) {
           const { CzPriceRequiredError } = await import("./shared/runCheck.ts");
+          const { ValidationError, publicErrorMessage } = await import("./shared/validate.ts");
           if (err instanceof CzPriceRequiredError) {
             res.statusCode = 422;
             res.setHeader("Content-Type", "application/json");
@@ -46,13 +75,16 @@ function tankCheckApi(): Plugin {
             );
             return;
           }
+          if (err instanceof ValidationError || (err as Error)?.name === "ValidationError") {
+            const msg = err instanceof Error ? err.message : "Ungültige Anfrage";
+            res.statusCode = msg.includes("Zu viele") ? 429 : 400;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: msg }));
+            return;
+          }
           res.statusCode = 500;
           res.setHeader("Content-Type", "application/json");
-          res.end(
-            JSON.stringify({
-              error: err instanceof Error ? err.message : "Unbekannter Fehler",
-            }),
-          );
+          res.end(JSON.stringify({ error: publicErrorMessage(err) }));
         }
       });
     },

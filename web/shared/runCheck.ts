@@ -1,6 +1,7 @@
 import { calculateTrip, kcToEur } from "./calc.js";
 import { DEFAULT_CONFIG } from "./config.js";
 import type { CheckRequest, CheckResponse, PriceKind, RouteOption, TripView } from "./types.js";
+import { safeHttpsUrl } from "./validate.js";
 
 export type ProviderFns = {
   fetchDeCheapest: (
@@ -67,10 +68,10 @@ export class CzPriceRequiredError extends Error {
 }
 
 function naviUrl(fromLat: number, fromLng: number, toLat: number, toLng: number): string {
-  return (
+  const raw =
     `https://www.google.com/maps/dir/?api=1` +
-    `&origin=${fromLat},${fromLng}&destination=${toLat},${toLng}&travelmode=driving`
-  );
+    `&origin=${fromLat},${fromLng}&destination=${toLat},${toLng}&travelmode=driving`;
+  return safeHttpsUrl(raw) ?? raw;
 }
 
 export function tripToView(t: ReturnType<typeof calculateTrip>): TripView {
@@ -106,13 +107,20 @@ export async function runCheck(
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     throw new Error("lat und lng sind erforderlich");
   }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new Error("Koordinaten außerhalb des gültigen Bereichs");
+  }
 
   const cfg = DEFAULT_CONFIG;
-  const fuelType = body.fuelType || cfg.fuelType;
+  const fuelRaw = (body.fuelType || cfg.fuelType).toLowerCase();
+  const fuelType =
+    fuelRaw === "e5" || fuelRaw === "e10" || fuelRaw === "diesel" ? fuelRaw : cfg.fuelType;
   let incomplete = false;
 
-  const manualKc =
+  const manualRaw =
     body.czPriceKc != null && Number.isFinite(body.czPriceKc) ? Number(body.czPriceKc) : null;
+  const manualKc =
+    manualRaw != null && manualRaw >= 5 && manualRaw <= 100 ? manualRaw : null;
   const czFallbackPromise =
     manualKc != null
       ? Promise.resolve(providers.manualCzPrice(manualKc, fuelType))
@@ -159,13 +167,14 @@ export async function runCheck(
   routed.sort((a, b) => a.route.distanceKm - b.route.distanceKm);
   const best = routed[0];
   if (routed.some((r) => r.route.source.includes("Schätzung"))) incomplete = true;
-  if (best.priceKc == null || !Number.isFinite(best.priceKc)) {
+  const bestPriceKc = best.priceKc;
+  if (bestPriceKc == null || !Number.isFinite(bestPriceKc)) {
     throw new CzPriceRequiredError(
       "Kein tschechischer Stationspreis gefunden. Bitte Kč/l unter Einstellungen eintragen.",
     );
   }
 
-  const pCzBest = kcToEur(best.priceKc, fx.kcPerEur);
+  const pCzBest = kcToEur(bestPriceKc, fx.kcPerEur);
   const trip = calculateTrip({
     pHome: de.price,
     pCz: pCzBest,
@@ -222,7 +231,7 @@ export async function runCheck(
         : "LOHNT SICH NICHT (nur Sprit)";
 
   const routen: RouteOption[] = routed.map((r) => {
-    const kc = r.priceKc ?? best.priceKc;
+    const kc = r.priceKc ?? bestPriceKc;
     const kind = routeKind(r);
     const source = r.station
       ? "CZ-Stationskatalog"
@@ -268,7 +277,7 @@ export async function runCheck(
         best.station
           ? `${best.station.name}${best.station.address ? `, ${best.station.address}` : ""}`
           : czFallback?.stationName || "Preis",
-      priceKc: best.priceKc,
+      priceKc: bestPriceKc,
       priceEur: pCzBest,
       source: routen[0]?.priceSource ?? "CZ",
       timestamp: routen[0]?.priceTimestamp ?? new Date().toISOString(),

@@ -1,3 +1,5 @@
+import { localeTag, type Locale } from "./i18n";
+
 export function eur(v: number, digits = 2): string {
   return v.toFixed(digits).replace(".", ",") + " €";
 }
@@ -10,9 +12,9 @@ export function kc(v: number): string {
   return v.toFixed(2).replace(".", ",");
 }
 
-export function localWhen(iso: string): string {
+export function localWhen(iso: string, locale: Locale = "de"): string {
   try {
-    return new Date(iso).toLocaleString("de-DE", {
+    return new Date(iso).toLocaleString(localeTag(locale), {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -22,4 +24,8 @@ export function localWhen(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+export function liters(v: number): string {
+  return v.toFixed(1).replace(".", ",");
 }

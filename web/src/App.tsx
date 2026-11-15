@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { calculateTrip } from "../shared/calc";
 import { DEFAULT_CONFIG } from "../shared/config";
 import type { CheckResponse, RouteOption } from "../shared/types";
-import { eur, kc, localWhen, price3 } from "./format";
+import { eur, kc, liters, localWhen, price3 } from "./format";
+import { CookieBanner, LegalLinks, LegalModal, type LegalPage } from "./Legal";
+import { loadLocale, saveLocale, t, type Locale } from "./i18n";
 
 type Fuel = "e10" | "e5" | "diesel";
 
@@ -33,9 +35,24 @@ function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return d;
-    return { ...d, ...(JSON.parse(raw) as Partial<Settings>) };
+    const parsed = JSON.parse(raw) as Partial<Settings> & { useLive?: boolean };
+    const { useLive: _drop, ...rest } = parsed;
+    const merged = { ...d, ...rest };
+    if (merged.fuel !== "e5" && merged.fuel !== "e10" && merged.fuel !== "diesel") {
+      merged.fuel = d.fuel;
+    }
+    return merged;
   } catch {
     return d;
+  }
+}
+
+function safeNaviHref(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" ? u.toString() : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -57,18 +74,25 @@ function osmEmbed(fromLat: number, fromLng: number, toLat: number, toLng: number
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [locale, setLocale] = useState<Locale>(loadLocale);
   const [menuOpen, setMenuOpen] = useState(false);
   const [result, setResult] = useState<CheckResponse | null>(null);
   const [routeName, setRouteName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needCz, setNeedCz] = useState(false);
   const [pending, setPending] = useState(false);
+  const [legalPage, setLegalPage] = useState<LegalPage>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    saveLocale(locale);
+    document.documentElement.lang = locale === "cs" ? "cs" : "de";
+  }, [locale]);
 
   useEffect(() => {
     if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -92,15 +116,12 @@ export default function App() {
 
   async function locate(): Promise<{ lat: number; lng: number }> {
     if (!navigator.geolocation) {
-      throw new Error("Ohne GPS geht die Strecke nicht. Bitte Standort am Gerät anmachen.");
+      throw new Error(t(locale, "errNoGps"));
     }
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () =>
-          reject(
-            new Error("Standort nicht da. Bitte GPS erlauben und nochmal prüfen."),
-          ),
+        () => reject(new Error(t(locale, "errGpsDenied"))),
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
       );
     });
@@ -129,54 +150,61 @@ export default function App() {
       if (!res.ok) {
         if (data.error === "CZ_PRICE_REQUIRED") {
           setNeedCz(true);
-          setError(data.message);
+          setError(t(locale, "errCzRequired"));
           setResult(null);
           setMenuOpen(true);
           return;
         }
-        throw new Error(data.error || data.message || "Prüfung fehlgeschlagen");
+        const msg =
+          typeof data.error === "string" && data.error.length < 200
+            ? data.error
+            : t(locale, "errCheckFailed");
+        throw new Error(msg);
       }
       const body = data as CheckResponse;
       setResult(body);
       setRouteName(body.routen[0]?.name ?? body.strecke.borderName);
     } catch (e) {
       setResult(null);
-      setError(e instanceof Error ? e.message : "Unbekannter Fehler");
+      setError(e instanceof Error ? e.message : t(locale, "errUnknown"));
     } finally {
       setPending(false);
     }
   }
 
-  const fuelLabel = settings.fuel.toUpperCase();
+  const fuelLabel =
+    settings.fuel === "diesel" ? t(locale, "diesel") : settings.fuel.toUpperCase();
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-lg flex-col px-5 pb-10 pt-8 sm:pt-12">
       <header className="mb-7 flex items-start justify-between gap-3 animate-[fadeUp_0.5s_ease-out]">
         <div>
           <p className="font-display text-4xl font-bold tracking-tight text-[var(--color-moss-deep)] sm:text-5xl">
-            Tank-Check
+            {t(locale, "brand")}
           </p>
           <p className="mt-2 max-w-[22rem] text-[0.95rem] leading-snug text-[var(--color-ink)]/75">
-            Lohnt sich Tanken in Tschechien? Hin mit dem Rest im Tank, zurück
-            mit günstigerem Sprit – Essen und Quatschen inklusive.
+            {t(locale, "tagline")}
           </p>
         </div>
-        <button
-          type="button"
-          aria-label="Einstellungen öffnen"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen(true)}
-          className="mt-1 grid size-11 shrink-0 place-items-center rounded-xl border border-[var(--color-moss)]/20 bg-white/70 text-[var(--color-moss-deep)] shadow-sm"
-        >
-          <svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true">
-            <path
-              d="M1 1.5h20M1 8h20M1 14.5h20"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+        <div className="mt-1 flex shrink-0 flex-col items-end gap-2">
+          <LangSwitch locale={locale} onChange={setLocale} />
+          <button
+            type="button"
+            aria-label={t(locale, "openSettings")}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+            className="grid size-11 place-items-center rounded-xl border border-[var(--color-moss)]/20 bg-white/70 text-[var(--color-moss-deep)] shadow-sm"
+          >
+            <svg width="22" height="16" viewBox="0 0 22 16" aria-hidden="true">
+              <path
+                d="M1 1.5h20M1 8h20M1 14.5h20"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <section className="space-y-3.5 animate-[fadeUp_0.55s_ease-out]">
@@ -185,10 +213,16 @@ export default function App() {
           onClick={() => setMenuOpen(true)}
           className="w-full rounded-2xl border border-[var(--color-moss)]/15 bg-white/60 px-4 py-3 text-left text-sm text-[var(--color-ink)]/80"
         >
-          <span className="font-semibold text-[var(--color-moss-deep)]">Dein Setup</span>
+          <span className="font-semibold text-[var(--color-moss-deep)]">
+            {t(locale, "yourSetup")}
+          </span>
           <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
-            {fuelLabel} · noch {settings.rangeKm || "—"} km im Tank · Essen {settings.meal || "—"} € ·
-            Karte {settings.fee || "—"} %
+            {t(locale, "setupLine", {
+              fuel: fuelLabel,
+              km: settings.rangeKm || "—",
+              meal: settings.meal || "—",
+              fee: settings.fee || "—",
+            })}
           </span>
         </button>
 
@@ -208,13 +242,14 @@ export default function App() {
           disabled={pending}
           className="w-full rounded-2xl bg-[var(--color-moss-deep)] px-4 py-4 text-lg font-semibold text-[var(--color-paper)] shadow-[0_12px_30px_-12px_rgba(26,46,31,0.7)] transition hover:bg-[var(--color-moss)] disabled:opacity-60"
         >
-          {pending ? "Prüfe …" : "Jetzt prüfen"}
+          {pending ? t(locale, "checking") : t(locale, "checkNow")}
         </button>
       </section>
 
       {result && (
         <div ref={resultRef}>
           <ResultCard
+            locale={locale}
             data={result}
             routeName={routeName ?? result.strecke.borderName}
             onRoute={setRouteName}
@@ -227,18 +262,23 @@ export default function App() {
       )}
 
       <footer className="mt-auto pt-10 text-xs leading-relaxed text-[var(--color-ink)]/55">
-        Persönliche Mini-App. DE: Stationspreise. CZ: günstigste Tankstelle hinter der Grenze.
-        Kurs: EZB-Referenz. Karte: typische Auslandsgebühr, in Kč zahlen.
+        <p>{t(locale, "footer")}</p>
+        <LegalLinks locale={locale} onOpen={setLegalPage} />
       </footer>
 
       {menuOpen && (
         <SettingsDrawer
+          locale={locale}
+          onLocale={setLocale}
           settings={settings}
           needCz={needCz}
           onSave={saveSettings}
           onClose={() => setMenuOpen(false)}
         />
       )}
+
+      <LegalModal page={legalPage} locale={locale} onClose={() => setLegalPage(null)} />
+      <CookieBanner locale={locale} />
 
       <style>{`
         @keyframes fadeUp {
@@ -250,12 +290,55 @@ export default function App() {
   );
 }
 
+function LangSwitch({
+  locale,
+  onChange,
+}: {
+  locale: Locale;
+  onChange: (l: Locale) => void;
+}) {
+  return (
+    <div
+      className="flex overflow-hidden rounded-lg border border-[var(--color-moss)]/20 bg-white/70 text-xs font-semibold"
+      role="group"
+      aria-label={t(locale, "language")}
+    >
+      <button
+        type="button"
+        onClick={() => onChange("de")}
+        className={`px-2.5 py-1.5 ${
+          locale === "de"
+            ? "bg-[var(--color-moss-deep)] text-[var(--color-paper)]"
+            : "text-[var(--color-moss-deep)]"
+        }`}
+      >
+        DE
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("cs")}
+        className={`px-2.5 py-1.5 ${
+          locale === "cs"
+            ? "bg-[var(--color-moss-deep)] text-[var(--color-paper)]"
+            : "text-[var(--color-moss-deep)]"
+        }`}
+      >
+        CZ
+      </button>
+    </div>
+  );
+}
+
 function SettingsDrawer({
+  locale,
+  onLocale,
   settings,
   needCz,
   onSave,
   onClose,
 }: {
+  locale: Locale;
+  onLocale: (l: Locale) => void;
   settings: Settings;
   needCz: boolean;
   onSave: (next: Settings) => void;
@@ -271,31 +354,38 @@ function SettingsDrawer({
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
         type="button"
-        aria-label="Einstellungen schließen"
+        aria-label={t(locale, "closeSettings")}
         className="absolute inset-0 bg-[var(--color-moss-deep)]/40"
         onClick={onClose}
       />
       <aside
         role="dialog"
-        aria-label="Einstellungen"
+        aria-label={t(locale, "settings")}
         className="relative flex h-full w-[min(100%,22rem)] flex-col bg-[var(--color-paper)] shadow-[-12px_0_40px_-20px_rgba(26,46,31,0.5)]"
       >
         <div className="flex items-center justify-between px-5 pb-3 pt-5">
           <p className="font-display text-2xl font-bold text-[var(--color-moss-deep)]">
-            Einstellungen
+            {t(locale, "settings")}
           </p>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg px-2 py-1 text-sm text-[var(--color-ink)]/70"
           >
-            Abbrechen
+            {t(locale, "cancel")}
           </button>
         </div>
 
         <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto px-5 pb-4">
+          <div>
+            <p className="mb-1.5 text-sm font-semibold text-[var(--color-moss-deep)]">
+              {t(locale, "language")}
+            </p>
+            <LangSwitch locale={locale} onChange={onLocale} />
+          </div>
+
           <label className="block text-sm font-semibold text-[var(--color-moss-deep)]">
-            Sorte
+            {t(locale, "fuel")}
             <select
               className="mt-1 w-full rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-3 text-base outline-none focus:border-[var(--color-moss)]"
               value={draft.fuel}
@@ -303,48 +393,48 @@ function SettingsDrawer({
             >
               <option value="e10">E10</option>
               <option value="e5">E5</option>
-              <option value="diesel">Diesel</option>
+              <option value="diesel">{t(locale, "diesel")}</option>
             </select>
           </label>
 
           <Field
-            label="Noch km im Tank"
+            label={t(locale, "rangeLabel")}
             value={draft.rangeKm}
             onChange={(v) => patch({ rangeKm: v })}
-            hint="z. B. 450"
-            note="Was der Tacho zeigt, bevor du losfährst. Nicht die Tankgröße (die ist 62 l)."
+            hint={t(locale, "rangeHint")}
+            note={t(locale, "rangeNote")}
           />
           <Field
-            label="Essen € (2 Pers.)"
+            label={t(locale, "mealLabel")}
             value={draft.meal}
             onChange={(v) => patch({ meal: v })}
             hint="12"
           />
           <Field
-            label="Kartengebühr %"
+            label={t(locale, "feeLabel")}
             value={draft.fee}
             onChange={(v) => patch({ fee: v })}
-            hint="1,75"
+            hint={t(locale, "feeHint")}
           />
           <Field
-            label="Ausflug wert €"
+            label={t(locale, "ausflugLabel")}
             value={draft.ausflug}
             onChange={(v) => patch({ ausflug: v })}
-            hint="Hausnummer"
+            hint={t(locale, "ausflugHint")}
           />
 
           <p className="text-xs text-[var(--color-ink)]/55">
-            Start ist immer dein aktueller Standort (GPS). Verbrauch{" "}
-            {DEFAULT_CONFIG.consumptionLPer100km.toString().replace(".", ",")} l / 100 km.
-            CZ-Preis holt die App von der günstigsten Tankstelle hinter der Grenze.
+            {t(locale, "settingsHint", {
+              cons: DEFAULT_CONFIG.consumptionLPer100km.toString().replace(".", ","),
+            })}
           </p>
 
           <label className="block text-sm font-semibold text-[var(--color-moss-deep)]">
-            CZ-Preis Kč/l {needCz ? "(nötig, Quelle fehlte)" : "(nur falls Stationen fehlen)"}
+            {needCz ? t(locale, "czPriceLabelNeed") : t(locale, "czPriceLabelOpt")}
             <input
               type="text"
               inputMode="decimal"
-              placeholder="wird automatisch geholt"
+              placeholder={t(locale, "czPricePlaceholder")}
               className="mt-1 w-full rounded-xl border border-[var(--color-moss)]/20 bg-white/70 px-3 py-3 text-base outline-none focus:border-[var(--color-moss)]"
               value={draft.czManual}
               onChange={(e) => patch({ czManual: e.target.value })}
@@ -358,7 +448,7 @@ function SettingsDrawer({
             onClick={() => onSave(draft)}
             className="w-full rounded-2xl bg-[var(--color-moss-deep)] px-4 py-3.5 text-base font-semibold text-[var(--color-paper)]"
           >
-            Speichern
+            {t(locale, "save")}
           </button>
         </div>
       </aside>
@@ -398,6 +488,7 @@ function Field({
 }
 
 function ResultCard({
+  locale,
   data,
   routeName,
   onRoute,
@@ -406,6 +497,7 @@ function ResultCard({
   cardFeePercent,
   ausflugWertEur,
 }: {
+  locale: Locale;
   data: CheckResponse;
   routeName: string;
   onRoute: (name: string) => void;
@@ -460,16 +552,32 @@ function ResultCard({
   );
 
   const headline = !trip.kannHin
-    ? "REST REICHT NICHT"
+    ? t(locale, "restNotEnough")
     : trip.lohntSprit
-      ? "LOHNT SICH (Sprit)"
+      ? t(locale, "worthFuel")
       : trip.lohntAusflug
-        ? "LOHNT ALS AUSFLUG"
-        : "LOHNT SICH NICHT (nur Sprit)";
+        ? t(locale, "worthTrip")
+        : t(locale, "notWorthFuel");
   const ok = trip.lohntSprit || trip.lohntAusflug;
   const czLabel = selected.stationName
     ? `${selected.stationName}${selected.stationAddress ? `, ${selected.stationAddress}` : ""}`
     : data.tschechien.label;
+  const naviHref = safeNaviHref(selected.naviUrl);
+
+  const hints = useMemo(() => {
+    const list = [
+      t(locale, "hintOutbound"),
+      t(locale, "hintFillRoom"),
+      t(locale, "hintMealOuting"),
+      t(locale, "hintFx", {
+        rate: data.kursKcProEur.toFixed(3).replace(".", ","),
+      }),
+      t(locale, "hintStationPrice"),
+    ];
+    if (!trip.kannHin) list.unshift(t(locale, "hintRangeShort"));
+    if (data.tschechien.note?.includes("14")) list.unshift(t(locale, "hintStale"));
+    return list;
+  }, [locale, data.kursKcProEur, data.tschechien.note, trip.kannHin]);
 
   return (
     <article
@@ -485,13 +593,16 @@ function ResultCard({
           {headline}
         </p>
         <p className="mt-1 text-sm text-[var(--color-ink)]/65">
-          Stand {localWhen(data.checkedAt)} · Kurs {price3(data.kursKcProEur)} Kč/€ (EZB-Referenz)
+          {t(locale, "asOf", {
+            when: localWhen(data.checkedAt, locale),
+            rate: price3(data.kursKcProEur),
+          })}
         </p>
       </div>
 
       <fieldset>
         <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--color-moss)]">
-          Strecke wählen (kürzeste zuerst)
+          {t(locale, "pickRoute")}
         </legend>
         <div className="mt-2 space-y-2">
           {data.routen.map((r, i) => (
@@ -513,12 +624,12 @@ function ResultCard({
               <span>
                 <span className="font-medium">
                   {r.name}
-                  {i === 0 ? " · kürzeste" : ""}
+                  {i === 0 ? ` · ${t(locale, "shortest")}` : ""}
                 </span>
                 <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
                   {r.stationName ? `${r.stationName} · ` : ""}
-                  {kc(r.priceKc)} Kč/l · {Math.round(r.onewayKm)} km · ca.{" "}
-                  {Math.round(r.durationH * 60)} min
+                  {kc(r.priceKc)} Kč/l · {Math.round(r.onewayKm)} km ·{" "}
+                  {t(locale, "approxMin", { min: Math.round(r.durationH * 60) })}
                 </span>
               </span>
             </label>
@@ -528,68 +639,93 @@ function ResultCard({
 
       <div className="overflow-hidden rounded-2xl border border-[var(--color-moss)]/15">
         <iframe
-          title="Strecke auf der Karte"
+          title={t(locale, "mapTitle")}
           className="h-48 w-full"
           src={osmEmbed(data.homeLat, data.homeLng, selected.destLat, selected.destLng)}
         />
       </div>
-      <a
-        href={selected.naviUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="flex w-full items-center justify-center rounded-2xl bg-[var(--color-amber-road)] px-4 py-3.5 text-base font-semibold text-[var(--color-ink)] transition hover:brightness-105"
-      >
-        Navi: {selected.stationName || selected.name}
-      </a>
+      {naviHref && (
+        <a
+          href={naviHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center rounded-2xl bg-[var(--color-amber-road)] px-4 py-3.5 text-base font-semibold text-[var(--color-ink)] transition hover:brightness-105"
+        >
+          {t(locale, "navi", { name: selected.stationName || selected.name })}
+        </a>
+      )}
       <p className="text-xs text-[var(--color-ink)]/55">
-        {Math.round(selected.onewayKm)} km hin, {Math.round(selected.onewayKm * 2)} km hin und
-        zurück. Ziel {selected.destLat.toFixed(4)}, {selected.destLng.toFixed(4)}
+        {t(locale, "roundTrip", {
+          one: Math.round(selected.onewayKm),
+          round: Math.round(selected.onewayKm * 2),
+          lat: selected.destLat.toFixed(4),
+          lng: selected.destLng.toFixed(4),
+        })}
       </p>
 
       <dl className="space-y-3 text-sm">
         <Row
-          label="Deutschland"
+          label={t(locale, "germany")}
           value={`${data.deutschland.stationName}, ${data.deutschland.fuelType.toUpperCase()} ${price3(data.deutschland.priceEur)} €/l`}
-          meta={`${localWhen(data.deutschland.timestamp)}, ${data.deutschland.source}`}
+          meta={`${localWhen(data.deutschland.timestamp, locale)}, ${data.deutschland.source}`}
         />
         <Row
-          label="Tschechien + Kurs"
+          label={t(locale, "czechiaFx")}
           value={`${czLabel} ${kc(selected.priceKc)} Kč = ${price3(pCz)} €/l`}
-          meta={`${selected.priceSource} · ${price3(data.kursKcProEur)} Kč je € · mit Karte ${price3(trip.pCzPay)} €/l`}
+          meta={`${selected.priceSource} · ${price3(data.kursKcProEur)} Kč/€ · ${t(locale, "withCard", { price: price3(trip.pCzPay) })}`}
         />
         <Row
-          label="Tank-Logik"
+          label={t(locale, "tankLogic")}
           value={
             trip.kannHin
-              ? `Rest ${Math.round(remainingRangeKm)} km reicht. Hin ${trip.onewayLiters.toFixed(1).replace(".", ",")} l schon im Tank.`
-              : `Rest reicht nicht (${Math.round(remainingRangeKm)} km < ${Math.round(selected.onewayKm)} km).`
+              ? t(locale, "tankOk", {
+                  km: Math.round(remainingRangeKm),
+                  liters: liters(trip.onewayLiters),
+                })
+              : t(locale, "tankFail", {
+                  have: Math.round(remainingRangeKm),
+                  need: Math.round(selected.onewayKm),
+                })
           }
-          meta={`Ankunft ~${trip.remainingAfterArrivalL.toFixed(1).replace(".", ",")} l übrig → ${trip.fillUsedL.toFixed(1).replace(".", ",")} l nachfüllen (nicht ${data.annahmen.fillLiters} l in den vollen Tank).`}
+          meta={t(locale, "tankMeta", {
+            left: liters(trip.remainingAfterArrivalL),
+            fill: liters(trip.fillUsedL),
+            full: data.annahmen.fillLiters,
+          })}
         />
         <Row
-          label="Sprit-Rechnung"
-          value={`Ersparnis ${eur(trip.ersparnisBrutto)} · Rückweg −${eur(trip.fahrtRueckEur)}`}
-          meta={`Hinweg-Opportunität (streng) −${eur(trip.fahrtHinOpportunitaetEur)} · Maut ${eur(data.mautEur)}`}
+          label={t(locale, "fuelCalc")}
+          value={t(locale, "fuelCalcValue", {
+            save: eur(trip.ersparnisBrutto),
+            back: eur(trip.fahrtRueckEur),
+          })}
+          meta={t(locale, "fuelCalcMeta", {
+            opp: eur(trip.fahrtHinOpportunitaetEur),
+            toll: eur(data.mautEur),
+          })}
         />
         <Row
-          label="Sprit-Netto"
+          label={t(locale, "fuelNet")}
           value={eur(trip.nettoSprit)}
-          meta={`Streng inkl. Hinweg-Restsprit: ${eur(trip.nettoStreng)}`}
+          meta={t(locale, "fuelNetMeta", { strict: eur(trip.nettoStreng) })}
         />
         <Row
-          label="Kasse nach Essen"
+          label={t(locale, "cashAfterMeal")}
           value={eur(trip.kasse)}
-          meta={`Essen ${eur(mealEur)} für 2 Personen (gutes Essen).`}
+          meta={t(locale, "cashMeta", { meal: eur(mealEur) })}
         />
         <Row
-          label="Mit Ausflug"
+          label={t(locale, "withOuting")}
           value={eur(trip.mitAusflug)}
-          meta={`Quatschen/Ausflug mit ${eur(ausflugWertEur)} angesetzt. Damit die Kasse aufgeht, muss der Nachmittag dir mindestens ${eur(trip.noetigerAusflugWertEur)} wert sein – unbezahlbar zählt trotzdem.`}
+          meta={t(locale, "outingMeta", {
+            value: eur(ausflugWertEur),
+            need: eur(trip.noetigerAusflugWertEur),
+          })}
         />
       </dl>
 
       <ul className="space-y-1 text-xs text-[var(--color-ink)]/55">
-        {data.hints.map((h) => (
+        {hints.map((h) => (
           <li key={h}>• {h}</li>
         ))}
       </ul>

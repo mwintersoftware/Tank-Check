@@ -50,7 +50,7 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
       ...(init?.headers ?? {}),
     },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} für ${url}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
@@ -72,7 +72,8 @@ export async function fetchEurCzk(): Promise<FxQuote> {
 
 async function fetchDeFallback(fuelType: string): Promise<PriceQuote> {
   const { fetchDeFromCityPage } = await import("./deFallback.js");
-  const city = process.env.DE_PRICE_CITY || "oberasbach";
+  const { safeCitySlug } = await import("../../shared/validate.js");
+  const city = safeCitySlug(process.env.DE_PRICE_CITY);
   const fb = await fetchDeFromCityPage(city, fuelType);
   return {
     price: fb.price,

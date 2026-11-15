@@ -87,7 +87,8 @@ export async function fetchDeFromCityPage(
   const prefix = FUEL_PATH[fuel];
   if (!prefix) throw new Error(`Unbekannte Sorte: ${fuelType}`);
 
-  const slug = citySlug.trim().toLowerCase().replace(/\s+/g, "-");
+  const slug = citySlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 64);
+  if (!slug) throw new Error("Ungültiger Ortsname");
   const url = `https://www.benzinpreis-aktuell.de/${prefix}-${slug}-heute`;
   const res = await fetch(url, {
     headers: {
