@@ -104,7 +104,9 @@ const de = {
   hintStationPrice: "CZ-Preis kommt von der günstigsten Tankstelle hinter der gewählten Grenze.",
   hintRangeShort:
     "Restreichweite reicht nicht bis zur Grenze – vorher in DE nachfüllen oder andere Strecke.",
-  hintStale: "Stationspreis älter als 14 Tage – vor Ort prüfen.",
+  hintStale: "Stationspreis älter als 7 Tage – vor Ort prüfen.",
+  hintPriceOld:
+    "CZ-Preis älter als 24 Stunden (Stationsmeldung) – wirklich aktuell nur vor Ort.",
 
   cookieAria: "Hinweis zu Cookies und Speicherung",
   cookieText:
@@ -248,7 +250,9 @@ const cs: Dict = {
   hintStationPrice: "Cena v ČR je z nejlevnější pumpy za zvolenou hranicí.",
   hintRangeShort:
     "Dojezd nestačí k hranici – nejdřív doplň v DE nebo zvol jinou trasu.",
-  hintStale: "Cena stanice je starší než 14 dní – ověř na místě.",
+  hintStale: "Cena stanice je starší než 7 dní – ověř na místě.",
+  hintPriceOld:
+    "Cena ČR starší než 24 hodin (hlášení stanice) – opravdu aktuální jen na místě.",
 
   cookieAria: "Upozornění na cookies a ukládání",
   cookieText:

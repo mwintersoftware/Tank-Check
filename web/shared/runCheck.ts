@@ -69,6 +69,23 @@ export type ProviderFns = {
       stale: boolean;
     }>
   >;
+  /** Frische Stationen inkl. Detail-Nachladen (bevorzugt). */
+  fetchCzStationsFresh?: (
+    cityPath: string,
+    fuelType: string,
+    limit?: number,
+  ) => Promise<
+    Array<{
+      name: string;
+      address: string;
+      lat: number;
+      lng: number;
+      priceKc: number;
+      timestamp: string;
+      href: string;
+      stale: boolean;
+    }>
+  >;
 };
 
 export class CzPriceRequiredError extends Error {
@@ -171,14 +188,23 @@ export async function runCheck(
     await Promise.all(
       cfg.borderCrossings.map(async (crossing) => {
         let stations: StationHit[] = [];
-        if (providers.fetchCzStations && manualKc == null) {
+        if (manualKc == null && (providers.fetchCzStationsFresh || providers.fetchCzStations)) {
           try {
-            const list = await providers.fetchCzStations(crossing.cityPath, fuelType);
-            const fresh = list.filter((s) => !s.stale);
-            const pool = (fresh.length ? fresh : list)
-              .slice()
-              .sort((a, b) => a.priceKc - b.priceKc)
-              .slice(0, MAX_STATIONS_PER_CROSSING);
+            let pool: StationHit[] = [];
+            if (providers.fetchCzStationsFresh) {
+              pool = await providers.fetchCzStationsFresh(
+                crossing.cityPath,
+                fuelType,
+                MAX_STATIONS_PER_CROSSING,
+              );
+            } else if (providers.fetchCzStations) {
+              const list = await providers.fetchCzStations(crossing.cityPath, fuelType);
+              const fresh = list.filter((s) => !s.stale);
+              pool = (fresh.length ? fresh : list)
+                .slice()
+                .sort((a, b) => a.priceKc - b.priceKc)
+                .slice(0, MAX_STATIONS_PER_CROSSING);
+            }
             stations = pool.map((s) => ({
               name: s.name,
               address: s.address,
@@ -322,7 +348,15 @@ export async function runCheck(
   }
   if (de.note) hints.unshift(de.note);
   if (best.station?.stale) {
-    hints.unshift("Stationspreis älter als 14 Tage – vor Ort prüfen.");
+    hints.unshift("Stationspreis älter als 7 Tage – vor Ort prüfen.");
+  } else if (best.station) {
+    const ageH =
+      (Date.now() - Date.parse(best.station.timestamp)) / 3_600_000;
+    if (Number.isFinite(ageH) && ageH > 24) {
+      hints.unshift(
+        "CZ-Stationspreis ist älter als 24 Stunden (Meldung der Station) – vor Ort prüfen.",
+      );
+    }
   } else if (czFallback?.note && !best.station) {
     hints.unshift(czFallback.note);
   }
@@ -396,8 +430,8 @@ export async function runCheck(
       kind: routen[0]?.priceKind ?? "average",
       note: best.station
         ? best.station.stale
-          ? "Stationspreis älter als 14 Tage – vor Ort prüfen."
-          : "Günstigste Station hinter der Grenze; vor Ort kann es abweichen."
+          ? "Stationspreis älter als 7 Tage – vor Ort prüfen."
+          : "Günstigste frische Station hinter der Grenze; vor Ort kann es abweichen."
         : czFallback?.note,
       lat: best.destLat,
       lng: best.destLng,

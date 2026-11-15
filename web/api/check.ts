@@ -65,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fetchEurCzk: providers.fetchEurCzk,
       fetchCzPrice: providers.fetchCzPrice,
       fetchCzStations: providers.fetchCzStations,
+      fetchCzStationsFresh: providers.fetchCzStationsFresh,
       fetchOpeningHours: providers.fetchOpeningHours,
       fetchOpeningHoursBatch: providers.fetchOpeningHoursBatch,
       manualCzPrice: providers.manualCzPrice,

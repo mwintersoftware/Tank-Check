@@ -649,9 +649,21 @@ function ResultCard({
       t(locale, "hintStationPrice"),
     ];
     if (!trip.kannHin) list.unshift(t(locale, "hintRangeShort"));
-    if (data.tschechien.note?.includes("14")) list.unshift(t(locale, "hintStale"));
+    if (data.tschechien.note?.includes("7 Tage") || data.tschechien.note?.includes("7 dní")) {
+      list.unshift(t(locale, "hintStale"));
+    } else {
+      const ageH =
+        (Date.now() - Date.parse(selected.priceTimestamp)) / 3_600_000;
+      if (Number.isFinite(ageH) && ageH > 24) list.unshift(t(locale, "hintPriceOld"));
+    }
     return list;
-  }, [locale, data.kursKcProEur, data.tschechien.note, trip.kannHin]);
+  }, [
+    locale,
+    data.kursKcProEur,
+    data.tschechien.note,
+    trip.kannHin,
+    selected.priceTimestamp,
+  ]);
 
   const shareText = useMemo(() => {
     const lines = [

@@ -280,6 +280,33 @@ export async function fetchCzStations(
   return list;
 }
 
+/** Frische Stationen (48 h bevorzugt) + Detail-Nachladen für aktuelle Kč-Preise. */
+export async function fetchCzStationsFresh(
+  cityPath: string,
+  fuelType: string,
+  limit = 5,
+): Promise<
+  Array<{
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    priceKc: number;
+    timestamp: string;
+    href: string;
+    stale: boolean;
+  }>
+> {
+  const list = await fetchCzStations(cityPath, fuelType);
+  const { pickFreshPool, refreshStationsFromDetail } = await import("./czStations.js");
+  let pool = pickFreshPool(list, limit);
+  if (pool.length) {
+    pool = await refreshStationsFromDetail(pool, fuelType);
+    pool = pickFreshPool(pool, limit);
+  }
+  return pool;
+}
+
 export async function fetchCzPrice(fuelType: string): Promise<PriceQuote> {
   const fuel = fuelType.toLowerCase();
   const cacheKey = `cz:best:${fuel}`;

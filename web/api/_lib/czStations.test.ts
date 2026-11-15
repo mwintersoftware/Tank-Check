@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseStationList, pickCheapest } from "./czStations";
+import {
+  parseStationDetail,
+  parseStationList,
+  pickCheapest,
+  pickFreshPool,
+} from "./czStations";
 
 const SAMPLE = `
 <article class="station-card" data-station-id="99" data-lat="49.649536" data-lng="12.532454"
@@ -50,5 +55,21 @@ describe("czStations", () => {
   it("nimmt Nafta bei Diesel", () => {
     const best = pickCheapest(parseStationList(SAMPLE, "diesel", NOW));
     expect(best?.priceKc).toBeCloseTo(45.4, 3);
+  });
+
+  it("bevorzugt frische Stationen (48 h) vor reinem Tiefstpreis", () => {
+    const pool = pickFreshPool(parseStationList(SAMPLE, "e10", NOW), 3);
+    expect(pool.every((s) => s.name !== "Alt")).toBe(true);
+    expect(pool[0]?.name).toBe("One1");
+  });
+
+  it("liest Detailseite-Preis und Stand", () => {
+    const html = `
+      <div data-prices="{&quot;diesel&quot;:45.3,&quot;natural95&quot;:40.5}"
+        data-price-ages="{&quot;diesel&quot;:&quot;2026-11-14 18:03:04&quot;,&quot;natural95&quot;:&quot;2026-11-15 18:03:30&quot;}"></div>
+      <div class="price-card price-card--natural95"><span data-czk="40.500">40,50</span></div>`;
+    const d = parseStationDetail(html, "e10");
+    expect(d?.priceKc).toBeCloseTo(40.5, 3);
+    expect(d?.timestamp).toContain("2026-11-15");
   });
 });
