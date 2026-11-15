@@ -68,7 +68,15 @@ const de = {
   restNotEnough: "Rest reicht nicht bis zur Grenze",
   worthFuel: "Ja, allein der Sprit lohnt sich",
   worthTrip: "Ja, der Ausflug lohnt sich ;-)",
+  worthRange: "Ja – mit der CZ-Reichweite lohnt es sich",
   notWorthFuel: "Nein, nur wegen Sprit lohnt es sich nicht",
+  rangeBonus: "Mehr Reichweite (CZ)",
+  rangeBonusValue: "ca. +{km} km · Gegenwert {eur}",
+  rangeBonusMeta:
+    "Eigene Beobachtung über Jahre: oft ca. {pct} % weiter mit CZ-Sprit (manchmal ~300 km mehr je Füllung). Keine Labor-Garantie – ehrlich geschätzt. Gesamtwert inkl. Ausflug: {total}.",
+  hintRangeBonus:
+    "Eigene Beobachtung (Jahre): mit CZ-Sprit oft ca. {pct} % weiter – Gegenwert {eur} für ca. +{km} km. Keine Labor-Garantie, ehrlich mitgerechnet.",
+  shareRangeBonus: "Mehr Reichweite CZ: ca. +{km} km (Gegenwert {eur})",
   asOf: "Stand {when} · Kurs {rate} Kč/€ (EZB-Referenz)",
   priceAgeDe: "DE-Preis {age}",
   priceAgeCz: "CZ-Preis {age}",
@@ -242,7 +250,15 @@ const cs: Dict = {
   restNotEnough: "Zbytek nestačí k hranici",
   worthFuel: "Jo, samotné palivo se vyplatí",
   worthTrip: "Jo, výlet se vyplatí ;-)",
+  worthRange: "Jo – s dojezdem z CZ se to vyplatí",
   notWorthFuel: "Ne, jen kvůli palivu se to nevyplatí",
+  rangeBonus: "Větší dojezd (CZ)",
+  rangeBonusValue: "cca +{km} km · hodnota {eur}",
+  rangeBonusMeta:
+    "Vlastní zkušenost za roky: často cca {pct} % dál s CZ palivem (někdy ~300 km navíc na nádrž). Bez laboratorní záruky – poctivý odhad. Celkem včetně výletu: {total}.",
+  hintRangeBonus:
+    "Vlastní zkušenost (roky): s CZ palivem často cca {pct} % dál – hodnota {eur} za cca +{km} km. Bez laboratorní záruky, poctivě započítáno.",
+  shareRangeBonus: "Větší dojezd CZ: cca +{km} km (hodnota {eur})",
   asOf: "Stav {when} · kurz {rate} Kč/€ (referenční kurz ECB)",
   priceAgeDe: "Cena DE {age}",
   priceAgeCz: "Cena CZ {age}",

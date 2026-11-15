@@ -55,8 +55,12 @@ export type TripView = {
   nettoStreng: number;
   kasse: number;
   mitAusflug: number;
+  extraRangeKm: number;
+  rangeBonusWertEur: number;
+  mitReichweite: number;
   lohntSprit: boolean;
   lohntAusflug: boolean;
+  lohntMitReichweite: boolean;
   noetigerAusflugWertEur: number;
   maxEinfacheKm: number | null;
 };
@@ -101,6 +105,7 @@ export type CheckResponse = {
     cardFeePercent: number;
     mealEur: number;
     ausflugWertEur: number;
+    czRangeBonusPercent: number;
     minNetSavingEur: number;
     tollEur: number;
   };

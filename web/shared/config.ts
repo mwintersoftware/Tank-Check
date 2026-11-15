@@ -25,6 +25,11 @@ export type AppConfig = {
   cardFeePercent: number;
   mealEur: number;
   ausflugWertEur: number;
+  /**
+   * Persönliche Beobachtung: CZ-Sprit ~X % mehr Reichweite (keine Labor-Garantie).
+   * Default 20 ≈ jahrelange Erfahrung (oft ~300 km mehr je Füllung).
+   */
+  czRangeBonusPercent: number;
   borderCrossings: BorderCrossing[];
 };
 
@@ -43,6 +48,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   cardFeePercent: 0.2,
   mealEur: 20,
   ausflugWertEur: 24,
+  czRangeBonusPercent: 20,
   borderCrossings: [
     {
       name: "Waidhaus / Rozvadov",

@@ -89,4 +89,26 @@ describe("calc", () => {
     expect(t.kannHin).toBe(false);
     expect(t.lohntSprit).toBe(false);
   });
+
+  it("CZ-Reichweiten-Bonus 20 % als ehrlicher Mehrwert", () => {
+    const t = calculateTrip({
+      pHome: 2,
+      pCz: 1.5,
+      fillLiters: 62,
+      tankCapacityL: 62,
+      consumptionLPer100km: 5.2,
+      dOnewayKm: 50,
+      remainingRangeKm: 450,
+      cardFeePercent: 0,
+      mealEur: 0,
+      ausflugWertEur: 0,
+      czRangeBonusPercent: 20,
+      minNetSavingEur: 5,
+    });
+    // fillUsedL ≈ 41.2 → Extra-km = 41.2/0.052 * 0.2 ≈ 158.5 → Wert = 158.5*0.052*2 ≈ 16.48
+    expect(t.extraRangeKm).toBeCloseTo(158.46, 0);
+    expect(t.rangeBonusWertEur).toBeCloseTo(t.fillUsedL * 0.2 * 2, 2);
+    expect(t.mitReichweite).toBeCloseTo(t.mitAusflug + t.rangeBonusWertEur, 5);
+    expect(t.lohntMitReichweite).toBe(true);
+  });
 });

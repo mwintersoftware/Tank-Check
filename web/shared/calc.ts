@@ -34,6 +34,8 @@ export type TripInput = {
   cardFeePercent?: number;
   mealEur?: number;
   ausflugWertEur?: number;
+  /** Beobachteter Reichweiten-Bonus von CZ-Sprit in % (z. B. 20). */
+  czRangeBonusPercent?: number;
   tollEur?: number;
   minNetSavingEur?: number;
 };
@@ -55,8 +57,15 @@ export type TripResult = {
   nettoStreng: number;
   kasse: number;
   mitAusflug: number;
+  /** Extra-km durch beobachteten CZ-Reichweiten-Bonus. */
+  extraRangeKm: number;
+  /** Gegenwert der Extra-km in € (zu DE-Preis). */
+  rangeBonusWertEur: number;
+  /** Kasse + Ausflug + Reichweiten-Mehrwert. */
+  mitReichweite: number;
   lohntSprit: boolean;
   lohntAusflug: boolean;
+  lohntMitReichweite: boolean;
   noetigerAusflugWertEur: number;
   maxEinfacheKm: number | null;
 };
@@ -123,6 +132,13 @@ export function calculateTrip(inp: TripInput): TripResult {
   const mitAusflug = kasse + ausflug;
   const noetigerAusflugWertEur = Math.max(0, meal - nettoSprit);
 
+  // Persönliche Beobachtung: CZ-Sprit oft ~X % mehr Reichweite → Extra-km wert DE-Preis
+  const bonusPct = Math.max(0, Math.min(50, inp.czRangeBonusPercent ?? 0)) / 100;
+  const baseRangeKm = c > 0 ? fillUsedL / c : 0;
+  const extraRangeKm = baseRangeKm * bonusPct;
+  const rangeBonusWertEur = extraRangeKm * c * inp.pHome; // = fillUsedL * bonusPct * pHome
+  const mitReichweite = mitAusflug + rangeBonusWertEur;
+
   const emptyStart = inp.tankCapacityL - remainingLiters;
   const delta = inp.pHome - pCzPay;
   const slope = inp.pHome - 2 * pCzPay;
@@ -153,8 +169,12 @@ export function calculateTrip(inp: TripInput): TripResult {
     nettoStreng,
     kasse,
     mitAusflug,
+    extraRangeKm,
+    rangeBonusWertEur,
+    mitReichweite,
     lohntSprit: kannHin && nettoSprit >= minNet,
     lohntAusflug: kannHin && mitAusflug >= minNet,
+    lohntMitReichweite: kannHin && mitReichweite >= minNet,
     noetigerAusflugWertEur,
     maxEinfacheKm,
   };

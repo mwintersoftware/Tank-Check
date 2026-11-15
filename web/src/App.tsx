@@ -852,6 +852,8 @@ function ResultCard({
         cardFeePercent,
         mealEur,
         ausflugWertEur,
+        czRangeBonusPercent:
+          data.annahmen.czRangeBonusPercent ?? DEFAULT_CONFIG.czRangeBonusPercent,
         tollEur: data.annahmen.tollEur,
         minNetSavingEur: data.annahmen.minNetSavingEur,
       }),
@@ -873,18 +875,28 @@ function ResultCard({
       ? t(locale, "worthFuel")
       : trip.lohntAusflug
         ? t(locale, "worthTrip")
-        : t(locale, "notWorthFuel");
-  const ok = trip.lohntSprit || trip.lohntAusflug;
+        : trip.lohntMitReichweite
+          ? t(locale, "worthRange")
+          : t(locale, "notWorthFuel");
+  const ok = trip.lohntSprit || trip.lohntAusflug || trip.lohntMitReichweite;
   const czName = selected.stationName || data.tschechien.label;
   const czAddress = selected.stationAddress;
   const czHours = selected.stationOpeningHours;
   const naviHref = safeNaviHref(selected.naviUrl);
+
+  const rangePct =
+    data.annahmen.czRangeBonusPercent ?? DEFAULT_CONFIG.czRangeBonusPercent;
 
   const hints = useMemo(() => {
     const list = [
       t(locale, "hintOutbound"),
       t(locale, "hintFillRoom"),
       t(locale, "hintMealOuting"),
+      t(locale, "hintRangeBonus", {
+        pct: rangePct,
+        km: Math.round(trip.extraRangeKm),
+        eur: eur(trip.rangeBonusWertEur),
+      }),
       t(locale, "hintFx", {
         rate: data.kursKcProEur.toFixed(3).replace(".", ","),
       }),
@@ -904,6 +916,9 @@ function ResultCard({
     data.kursKcProEur,
     data.tschechien.note,
     trip.kannHin,
+    trip.extraRangeKm,
+    trip.rangeBonusWertEur,
+    rangePct,
     selected.priceTimestamp,
   ]);
 
@@ -917,6 +932,10 @@ function ResultCard({
         : `${t(locale, "openingHours")}: ${t(locale, "hoursUnknown")}`,
       `${t(locale, "germany")}: ${price3(data.deutschland.priceEur)} €/l (${ageLabel(data.deutschland.timestamp, locale)})`,
       `${t(locale, "czechiaFx")}: ${kc(selected.priceKc)} Kč/l (${ageLabel(selected.priceTimestamp, locale)})`,
+      t(locale, "shareRangeBonus", {
+        km: Math.round(trip.extraRangeKm),
+        eur: eur(trip.rangeBonusWertEur),
+      }),
       t(locale, "priceGuarantee"),
     ];
     if (naviHref) lines.push(naviHref);
@@ -930,6 +949,8 @@ function ResultCard({
     selected,
     data.deutschland,
     naviHref,
+    trip.extraRangeKm,
+    trip.rangeBonusWertEur,
   ]);
 
   async function shareNative() {
@@ -1179,6 +1200,19 @@ function ResultCard({
           meta={t(locale, "outingMeta", {
             value: eur(ausflugWertEur),
             need: eur(trip.noetigerAusflugWertEur),
+          })}
+        />
+        <Row
+          label={t(locale, "rangeBonus")}
+          value={t(locale, "rangeBonusValue", {
+            km: Math.round(trip.extraRangeKm),
+            eur: eur(trip.rangeBonusWertEur),
+          })}
+          meta={t(locale, "rangeBonusMeta", {
+            pct:
+              data.annahmen.czRangeBonusPercent ??
+              DEFAULT_CONFIG.czRangeBonusPercent,
+            total: eur(trip.mitReichweite),
           })}
         />
       </dl>

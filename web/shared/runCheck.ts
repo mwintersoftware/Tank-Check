@@ -123,8 +123,12 @@ export function tripToView(t: ReturnType<typeof calculateTrip>): TripView {
     nettoStreng: t.nettoStreng,
     kasse: t.kasse,
     mitAusflug: t.mitAusflug,
+    extraRangeKm: t.extraRangeKm,
+    rangeBonusWertEur: t.rangeBonusWertEur,
+    mitReichweite: t.mitReichweite,
     lohntSprit: t.lohntSprit,
     lohntAusflug: t.lohntAusflug,
+    lohntMitReichweite: t.lohntMitReichweite,
     noetigerAusflugWertEur: t.noetigerAusflugWertEur,
     maxEinfacheKm: t.maxEinfacheKm,
   };
@@ -335,11 +339,12 @@ export async function runCheck(
     cardFeePercent: cfg.cardFeePercent,
     mealEur: cfg.mealEur,
     ausflugWertEur: cfg.ausflugWertEur,
+    czRangeBonusPercent: cfg.czRangeBonusPercent,
     tollEur: cfg.tollEur,
     minNetSavingEur: cfg.minNetSavingEur,
   };
 
-  /** Nur die besten Spar-Ergebnisse (Top 3 nach Mit-Ausflug). */
+  /** Nur die besten Spar-Ergebnisse (Top 3 inkl. Reichweiten-Mehrwert). */
   const TOP_BEST = 3;
   const scored = routed
     .filter((r) => r.priceKc != null && Number.isFinite(r.priceKc))
@@ -350,7 +355,7 @@ export async function runCheck(
         pCz,
         dOnewayKm: r.route.distanceKm,
       });
-      return { r, tripOne, sparEur: tripOne.mitAusflug };
+      return { r, tripOne, sparEur: tripOne.mitReichweite };
     })
     .sort(
       (a, b) =>
@@ -405,6 +410,7 @@ export async function runCheck(
     "Essen ist Kasse. Quatschen und Ausflug stehen extra – unbezahlbar, hier mit Hausnummer.",
     `Euro-Kurs: ${fx.kcPerEur.toFixed(3).replace(".", ",")} Kč je €. In Kronen zahlen, nicht in Euro umrechnen lassen.`,
     "Angezeigt: die drei besten Spar-Optionen. CZ-Preise von frischen Stationsmeldungen.",
+    `Reichweite: eigene Beobachtung über Jahre – CZ-Sprit oft ca. ${cfg.czRangeBonusPercent} % weiter (Gegenwert in der Rechnung). Keine Labor-Garantie, vor Ort kann es abweichen.`,
   ];
   if (!trip.kannHin) {
     hints.unshift("Restreichweite reicht nicht bis zur Grenze – vorher in DE nachfüllen oder andere Strecke.");
@@ -482,6 +488,7 @@ export async function runCheck(
       cardFeePercent: cfg.cardFeePercent,
       mealEur: cfg.mealEur,
       ausflugWertEur: cfg.ausflugWertEur,
+      czRangeBonusPercent: cfg.czRangeBonusPercent,
       minNetSavingEur: cfg.minNetSavingEur,
       tollEur: cfg.tollEur,
     },
