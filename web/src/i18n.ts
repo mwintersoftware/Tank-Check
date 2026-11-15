@@ -59,7 +59,7 @@ const de = {
   priceAgeCz: "CZ-Preis {age}",
   priceGuarantee:
     "Preisgarantie nur geschätzt – oft nur für wenige Stunden, vor Ort prüfen.",
-  pickRoute: "Strecke wählen (kürzeste zuerst)",
+  pickRoute: "Tankstelle wählen (kürzeste zuerst, bis 5 je Grenze)",
   shortest: "kürzeste",
   mapTitle: "Strecke auf der Karte",
   navi: "Navi: {name}",
@@ -203,7 +203,7 @@ const cs: Dict = {
   priceAgeCz: "Cena CZ {age}",
   priceGuarantee:
     "Garance ceny jen odhad – často jen na pár hodin, ověř na místě.",
-  pickRoute: "Vyber trasu (nejkratší první)",
+  pickRoute: "Vyber pumpu (nejkratší první, max. 5 na hranici)",
   shortest: "nejkratší",
   mapTitle: "Trasa na mapě",
   navi: "Navigace: {name}",

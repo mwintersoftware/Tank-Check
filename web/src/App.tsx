@@ -763,11 +763,10 @@ function ResultCard({
                   {kc(r.priceKc)} Kč/l · {Math.round(r.onewayKm)} km ·{" "}
                   {t(locale, "approxMin", { min: Math.round(r.durationH * 60) })}
                 </span>
-                {r.stationOpeningHours && (
-                  <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
-                    {t(locale, "openingHours")}: {r.stationOpeningHours}
-                  </span>
-                )}
+                <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
+                  {t(locale, "openingHours")}:{" "}
+                  {r.stationOpeningHours || t(locale, "hoursUnknown")}
+                </span>
               </span>
             </label>
           ))}

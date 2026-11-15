@@ -25,6 +25,9 @@ export type ProviderFns = {
     lng: number,
     hint?: { name?: string; address?: string },
   ) => Promise<string | null>;
+  fetchOpeningHoursBatch?: (
+    targets: Array<{ lat: number; lng: number; name?: string; address?: string }>,
+  ) => Promise<(string | null)[]>;
   fetchEurCzk: () => Promise<{ kcPerEur: number; source: string; timestamp: string }>;
   fetchCzPrice: (fuelType: string) => Promise<{
     price: number;
@@ -151,40 +154,123 @@ export async function runCheck(
     openingHours?: string;
   };
 
-  const routed = await Promise.all(
-    cfg.borderCrossings.map(async (crossing) => {
-      let station: StationHit | null = null;
-      if (providers.fetchCzStations && manualKc == null) {
-        try {
-          const list = await providers.fetchCzStations(crossing.cityPath, fuelType);
-          const fresh = list.filter((s) => !s.stale);
-          const pool = fresh.length ? fresh : list;
-          station = pool.length
-            ? pool.reduce((a, b) => (a.priceKc <= b.priceKc ? a : b))
-            : null;
-        } catch {
-          incomplete = true;
+  /** Pro Grenze mehrere Stationen in der Übersicht (günstigste zuerst). */
+  const MAX_STATIONS_PER_CROSSING = 5;
+
+  type Routed = {
+    crossing: (typeof cfg.borderCrossings)[number];
+    route: { distanceKm: number; durationH: number; source: string };
+    station: StationHit | null;
+    destLat: number;
+    destLng: number;
+    priceKc: number | null;
+    label: string;
+  };
+
+  const routed: Routed[] = (
+    await Promise.all(
+      cfg.borderCrossings.map(async (crossing) => {
+        let stations: StationHit[] = [];
+        if (providers.fetchCzStations && manualKc == null) {
+          try {
+            const list = await providers.fetchCzStations(crossing.cityPath, fuelType);
+            const fresh = list.filter((s) => !s.stale);
+            const pool = (fresh.length ? fresh : list)
+              .slice()
+              .sort((a, b) => a.priceKc - b.priceKc)
+              .slice(0, MAX_STATIONS_PER_CROSSING);
+            stations = pool.map((s) => ({
+              name: s.name,
+              address: s.address,
+              lat: s.lat,
+              lng: s.lng,
+              priceKc: s.priceKc,
+              timestamp: s.timestamp,
+              stale: s.stale,
+            }));
+          } catch {
+            incomplete = true;
+          }
         }
-      }
-      const destLat = station?.lat ?? crossing.destLat;
-      const destLng = station?.lng ?? crossing.destLng;
-      const [route, openingHours] = await Promise.all([
-        providers.routeDistance(lat, lng, destLat, destLng),
-        station && providers.fetchOpeningHours
-          ? providers
-              .fetchOpeningHours(station.lat, station.lng, {
-                name: station.name,
-                address: station.address,
-              })
-              .catch(() => null)
-          : Promise.resolve(null),
-      ]);
-      if (station && openingHours) station.openingHours = openingHours;
-      const priceKc = manualKc ?? station?.priceKc ?? czFallback?.price ?? null;
-      return { crossing, route, station, destLat, destLng, priceKc };
-    }),
+
+        if (!stations.length) {
+          const destLat = crossing.destLat;
+          const destLng = crossing.destLng;
+          const route = await providers.routeDistance(lat, lng, destLat, destLng);
+          const priceKc = manualKc ?? czFallback?.price ?? null;
+          return [
+            {
+              crossing,
+              route,
+              station: null,
+              destLat,
+              destLng,
+              priceKc,
+              label: crossing.name,
+            } satisfies Routed,
+          ];
+        }
+
+        return Promise.all(
+          stations.map(async (station) => {
+            const route = await providers.routeDistance(
+              lat,
+              lng,
+              station.lat,
+              station.lng,
+            );
+            return {
+              crossing,
+              route,
+              station,
+              destLat: station.lat,
+              destLng: station.lng,
+              priceKc: manualKc ?? station.priceKc,
+              label: `${crossing.name} · ${station.name}`,
+            } satisfies Routed;
+          }),
+        );
+      }),
+    )
+  ).flat();
+
+  // Öffnungszeiten: alle Stationen gebündelt (Betreiber parallel, Overpass einmal)
+  const hourTargets = routed
+    .map((r, i) => ({ r, i }))
+    .filter((x) => x.r.station);
+  if (hourTargets.length && (providers.fetchOpeningHoursBatch || providers.fetchOpeningHours)) {
+    try {
+      const hours = providers.fetchOpeningHoursBatch
+        ? await providers.fetchOpeningHoursBatch(
+            hourTargets.map(({ r }) => ({
+              lat: r.station!.lat,
+              lng: r.station!.lng,
+              name: r.station!.name,
+              address: r.station!.address,
+            })),
+          )
+        : await Promise.all(
+            hourTargets.map(({ r }) =>
+              providers.fetchOpeningHours!(r.station!.lat, r.station!.lng, {
+                name: r.station!.name,
+                address: r.station!.address,
+              }).catch(() => null),
+            ),
+          );
+      hourTargets.forEach(({ r }, j) => {
+        const h = hours[j];
+        if (h && r.station) r.station.openingHours = h;
+      });
+    } catch {
+      /* Öffnungszeiten optional */
+    }
+  }
+
+  routed.sort(
+    (a, b) =>
+      a.route.distanceKm - b.route.distanceKm ||
+      (a.priceKc ?? 999) - (b.priceKc ?? 999),
   );
-  routed.sort((a, b) => a.route.distanceKm - b.route.distanceKm);
   const best = routed[0];
   if (routed.some((r) => r.route.source.includes("Schätzung"))) incomplete = true;
   const bestPriceKc = best.priceKc;
@@ -261,7 +347,7 @@ export async function runCheck(
         ? "manuell"
         : czFallback?.source || "Durchschnitt";
     return {
-      name: r.crossing.name,
+      name: r.label,
       destLat: r.destLat,
       destLng: r.destLng,
       onewayKm: r.route.distanceKm,

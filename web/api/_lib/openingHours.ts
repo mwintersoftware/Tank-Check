@@ -1,4 +1,4 @@
-/** Öffnungszeiten nahe einer Tankstelle (Karten-Daten + Betreiberseite). */
+/** Öffnungszeiten: Betreiber schnell, Overpass gebündelt für alle Stationen. */
 
 type OsmElement = {
   type?: string;
@@ -13,18 +13,30 @@ export type OpeningHoursHint = {
   address?: string;
 };
 
+export type OpeningHoursTarget = {
+  lat: number;
+  lng: number;
+  name?: string;
+  address?: string;
+};
+
 const cache = new Map<string, { expires: number; value: string | null }>();
 const TTL_OK_MS = 6 * 60 * 60 * 1000;
-const TTL_MISS_MS = 60_000;
+const TTL_MISS_MS = 90_000;
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass-api.de/api/interpreter",
 ];
 
-function cacheKey(lat: number, lng: number, hint?: OpeningHoursHint): string {
-  const h = `${hint?.name || ""}|${hint?.address || ""}`.toLowerCase().slice(0, 80);
-  return `oh:${lat.toFixed(4)},${lng.toFixed(4)}:${h}`;
+const BRAND_TIMEOUT_MS = 5_000;
+const OVERPASS_TIMEOUT_MS = 12_000;
+const BATCH_BUDGET_MS = 14_000;
+const MATCH_RADIUS_M = 450;
+
+function cacheKey(t: OpeningHoursTarget): string {
+  const h = `${t.name || ""}|${t.address || ""}`.toLowerCase().slice(0, 80);
+  return `oh:${t.lat.toFixed(4)},${t.lng.toFixed(4)}:${h}`;
 }
 
 function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -54,7 +66,6 @@ function fold(s: string): string {
     .replace(/ß/g, "ss");
 }
 
-/** One1-Betreiberseiten an der Grenze – oft zuverlässiger als Karten-Tags. */
 function one1StationUrls(hint?: OpeningHoursHint): string[] {
   const blob = fold(`${hint?.name || ""} ${hint?.address || ""}`);
   if (!/(?:^|[^a-z])(?:one\s*1|one1|free\s*1|free1)(?:[^a-z]|$)/.test(blob)) {
@@ -67,6 +78,12 @@ function one1StationUrls(hint?: OpeningHoursHint): string[] {
   if (blob.includes("rozvadov") && (blob.includes("praha") || blob.includes("plzen"))) {
     urls.push("https://www.one1.eu/de/rozvadov-d5-smer-praha");
   }
+  if (blob.includes("cheb") || blob.includes("svaty kriz") || blob.includes("svaty-kriz")) {
+    urls.push("https://www.one1.eu/de/svaty-kriz");
+  }
+  if (blob.includes("folmava") || blob.includes("ceska kubice") || blob.includes("kubice")) {
+    urls.push("https://www.one1.eu/de/ceska-kubice");
+  }
   if (blob.includes("rozvadov") && urls.length === 0) {
     urls.push(
       "https://www.one1.eu/de/rozvadov-d5-smer-nemecko",
@@ -75,7 +92,7 @@ function one1StationUrls(hint?: OpeningHoursHint): string[] {
       "https://www.one1.eu/de/rozvadov-ii",
     );
   }
-  return urls;
+  return [...new Set(urls)];
 }
 
 function parseOne1Hours(html: string): string | null {
@@ -114,7 +131,7 @@ async function fetchOne1Hours(hint?: OpeningHoursHint): Promise<string | null> {
           "User-Agent": "Tank-Check/1.0 (personal)",
           Accept: "text/html",
         },
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(BRAND_TIMEOUT_MS),
       });
       if (!res.ok) continue;
       const hours = parseOne1Hours(await res.text());
@@ -130,6 +147,7 @@ function pickNearestHours(
   elements: OsmElement[],
   lat: number,
   lng: number,
+  maxM = MATCH_RADIUS_M,
 ): string | null {
   let best: { dist: number; hours: string } | null = null;
   for (const e of elements) {
@@ -137,8 +155,9 @@ function pickNearestHours(
     if (!raw) continue;
     const elat = e.lat ?? e.center?.lat;
     const elng = e.lon ?? e.center?.lon;
-    const dist =
-      elat != null && elng != null ? haversineM(lat, lng, elat, elng) : 99999;
+    if (elat == null || elng == null) continue;
+    const dist = haversineM(lat, lng, elat, elng);
+    if (dist > maxM) continue;
     if (!best || dist < best.dist) best = { dist, hours: raw };
   }
   return best ? humanizeOpeningHours(best.hours) : null;
@@ -155,31 +174,99 @@ async function fetchOverpassOnce(
       "User-Agent": "Tank-Check/1.0 (personal)",
     },
     body: `data=${encodeURIComponent(query)}`,
-    signal: AbortSignal.timeout(22_000),
+    signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
   const data = (await res.json()) as { elements?: OsmElement[] };
   return data.elements ?? [];
 }
 
-async function fetchFromOverpass(lat: number, lng: number): Promise<string | null> {
-  const query =
-    `[out:json][timeout:20];` +
-    `(node(around:400,${lat},${lng})["amenity"="fuel"];` +
-    `way(around:400,${lat},${lng})["amenity"="fuel"];);out tags center 12;`;
+/** Ein Overpass-Call für alle Stationen statt N Einzelabfragen. */
+async function fetchOverpassBatch(targets: OpeningHoursTarget[]): Promise<OsmElement[]> {
+  if (!targets.length) return [];
+  const parts = targets
+    .map(
+      (t) =>
+        `node(around:${MATCH_RADIUS_M},${t.lat},${t.lng})["amenity"="fuel"];` +
+        `way(around:${MATCH_RADIUS_M},${t.lat},${t.lng})["amenity"="fuel"];`,
+    )
+    .join("");
+  const query = `[out:json][timeout:10];(${parts});out tags center;`;
 
-  const errors: unknown[] = [];
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
       const elements = await fetchOverpassOnce(endpoint, query);
-      const hours = pickNearestHours(elements, lat, lng);
-      if (hours) return hours;
-    } catch (err) {
-      errors.push(err);
+      if (elements.length) return elements;
+    } catch {
+      /* nächster Spiegel */
     }
   }
-  if (errors.length) return null;
-  return null;
+  return [];
+}
+
+function remember(t: OpeningHoursTarget, value: string | null): void {
+  cache.set(cacheKey(t), {
+    expires: Date.now() + (value ? TTL_OK_MS : TTL_MISS_MS),
+    value,
+  });
+}
+
+/**
+ * Öffnungszeiten für viele Stationen:
+ * 1) Cache
+ * 2) Betreiberseiten parallel (schnell)
+ * 3) ein gebündelter Karten-Abruf nur für Lücken
+ * Gesamtes Zeitbudget begrenzt die Wartezeit.
+ */
+export async function fetchOpeningHoursBatch(
+  targets: OpeningHoursTarget[],
+): Promise<(string | null)[]> {
+  if (!targets.length) return [];
+
+  const out: (string | null)[] = targets.map(() => null);
+  const needIdx: number[] = [];
+
+  for (let i = 0; i < targets.length; i++) {
+    const hit = cache.get(cacheKey(targets[i]!));
+    if (hit && Date.now() < hit.expires) {
+      out[i] = hit.value;
+    } else {
+      needIdx.push(i);
+    }
+  }
+  if (!needIdx.length) return out;
+
+  const started = Date.now();
+  const budgetLeft = () => Math.max(0, BATCH_BUDGET_MS - (Date.now() - started));
+
+  const brandJobs = needIdx.map(async (i) => {
+    const hours = await fetchOne1Hours(targets[i]);
+    if (hours) {
+      out[i] = hours;
+      remember(targets[i]!, hours);
+    }
+  });
+  await Promise.all(brandJobs);
+
+  const stillNeed = needIdx.filter((i) => !out[i]);
+  if (!stillNeed.length || budgetLeft() < 1_500) return out;
+
+  const osmPromise = fetchOverpassBatch(stillNeed.map((i) => targets[i]!));
+  const elements = await Promise.race([
+    osmPromise,
+    new Promise<OsmElement[]>((resolve) =>
+      setTimeout(() => resolve([]), budgetLeft()),
+    ),
+  ]);
+
+  for (const i of stillNeed) {
+    if (out[i]) continue;
+    const t = targets[i]!;
+    const hours = pickNearestHours(elements, t.lat, t.lng);
+    out[i] = hours;
+    remember(t, hours);
+  }
+  return out;
 }
 
 export async function fetchOpeningHoursNear(
@@ -187,20 +274,8 @@ export async function fetchOpeningHoursNear(
   lng: number,
   hint?: OpeningHoursHint,
 ): Promise<string | null> {
-  const key = cacheKey(lat, lng, hint);
-  const hit = cache.get(key);
-  if (hit && Date.now() < hit.expires) return hit.value;
-
-  const [overpass, brand] = await Promise.all([
-    fetchFromOverpass(lat, lng),
-    fetchOne1Hours(hint),
+  const [one] = await fetchOpeningHoursBatch([
+    { lat, lng, name: hint?.name, address: hint?.address },
   ]);
-
-  // Betreiberseite bevorzugen, wenn vorhanden (aktueller als OSM)
-  const value = brand || overpass;
-  cache.set(key, {
-    expires: Date.now() + (value ? TTL_OK_MS : TTL_MISS_MS),
-    value,
-  });
-  return value;
+  return one ?? null;
 }

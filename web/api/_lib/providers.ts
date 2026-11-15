@@ -248,6 +248,13 @@ export async function fetchOpeningHours(
   return fetchOpeningHoursCached(lat, lng, hint);
 }
 
+export async function fetchOpeningHoursBatch(
+  targets: Array<{ lat: number; lng: number; name?: string; address?: string }>,
+): Promise<(string | null)[]> {
+  const { fetchOpeningHoursBatch: batch } = await import("./openingHours.js");
+  return batch(targets);
+}
+
 export async function fetchCzStations(
   cityPath: string,
   fuelType: string,
