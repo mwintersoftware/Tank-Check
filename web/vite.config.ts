@@ -60,6 +60,7 @@ function tankCheckApi(): Plugin {
             fetchCzStationsFresh: providers.fetchCzStationsFresh,
             fetchOpeningHours: providers.fetchOpeningHours,
             fetchOpeningHoursBatch: providers.fetchOpeningHoursBatch,
+            fetchNearbyPlaces: providers.fetchNearbyPlaces,
             manualCzPrice: providers.manualCzPrice,
             routeDistance: providers.routeDistance,
           });

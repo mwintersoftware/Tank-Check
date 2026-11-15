@@ -28,6 +28,10 @@ export type ProviderFns = {
   fetchOpeningHoursBatch?: (
     targets: Array<{ lat: number; lng: number; name?: string; address?: string }>,
   ) => Promise<(string | null)[]>;
+  fetchNearbyPlaces?: (lat: number, lng: number) => Promise<{
+    restaurants: CheckResponse["nearby"]["restaurants"];
+    shops: CheckResponse["nearby"]["shops"];
+  }>;
   fetchEurCzk: () => Promise<{ kcPerEur: number; source: string; timestamp: string }>;
   fetchCzPrice: (fuelType: string) => Promise<{
     price: number;
@@ -292,36 +296,22 @@ export async function runCheck(
     }
   }
 
-  routed.sort(
-    (a, b) =>
-      a.route.distanceKm - b.route.distanceKm ||
-      (a.priceKc ?? 999) - (b.priceKc ?? 999),
-  );
-  const best = routed[0];
   if (routed.some((r) => r.route.source.includes("Schätzung"))) incomplete = true;
-  const bestPriceKc = best.priceKc;
-  if (bestPriceKc == null || !Number.isFinite(bestPriceKc)) {
+
+  const anyPrice = routed.find((r) => r.priceKc != null && Number.isFinite(r.priceKc));
+  if (!anyPrice || anyPrice.priceKc == null) {
     throw new CzPriceRequiredError(
       "Kein tschechischer Stationspreis gefunden. Bitte Kč/l unter Einstellungen eintragen.",
     );
   }
 
-  const pCzBest = kcToEur(bestPriceKc, fx.kcPerEur);
-  const trip = calculateTrip({
-    pHome: de.price,
-    pCz: pCzBest,
-    fillLiters: cfg.fillLiters,
-    tankCapacityL: cfg.tankCapacityL,
-    consumptionLPer100km: cfg.consumptionLPer100km,
-    dOnewayKm: best.route.distanceKm,
-    remainingRangeKm: cfg.remainingRangeKm,
-    cardFeePercent: cfg.cardFeePercent,
-    mealEur: cfg.mealEur,
-    ausflugWertEur: cfg.ausflugWertEur,
-    tollEur: cfg.tollEur,
-    minNetSavingEur: cfg.minNetSavingEur,
-  });
-  const view = tripToView(trip);
+  const scanLog = [
+    ...new Set(
+      routed
+        .map((r) => r.station?.name || r.label)
+        .filter((n): n is string => Boolean(n && n.trim())),
+    ),
+  ];
 
   const kindLabel = {
     station: "Stationspreis",
@@ -336,12 +326,91 @@ export async function runCheck(
     return czFallback?.kind ?? "average";
   }
 
+  const tripInputBase = {
+    pHome: de.price,
+    fillLiters: cfg.fillLiters,
+    tankCapacityL: cfg.tankCapacityL,
+    consumptionLPer100km: cfg.consumptionLPer100km,
+    remainingRangeKm: cfg.remainingRangeKm,
+    cardFeePercent: cfg.cardFeePercent,
+    mealEur: cfg.mealEur,
+    ausflugWertEur: cfg.ausflugWertEur,
+    tollEur: cfg.tollEur,
+    minNetSavingEur: cfg.minNetSavingEur,
+  };
+
+  /** Nur die besten Spar-Ergebnisse (Top 3 nach Mit-Ausflug). */
+  const TOP_BEST = 3;
+  const scored = routed
+    .filter((r) => r.priceKc != null && Number.isFinite(r.priceKc))
+    .map((r) => {
+      const pCz = kcToEur(r.priceKc!, fx.kcPerEur);
+      const tripOne = calculateTrip({
+        ...tripInputBase,
+        pCz,
+        dOnewayKm: r.route.distanceKm,
+      });
+      return { r, tripOne, sparEur: tripOne.mitAusflug };
+    })
+    .sort(
+      (a, b) =>
+        b.sparEur - a.sparEur ||
+        a.r.route.distanceKm - b.r.route.distanceKm,
+    );
+
+  const top = scored.slice(0, TOP_BEST);
+  const bestRow = top[0]!;
+  const best = bestRow.r;
+  const trip = bestRow.tripOne;
+  const view = tripToView(trip);
+  const bestPriceKc = best.priceKc!;
+  const pCzBest = kcToEur(bestPriceKc, fx.kcPerEur);
+
+  const routen: RouteOption[] = top.map((row, i) => {
+    const r = row.r;
+    const kc = r.priceKc!;
+    const kind = routeKind(r);
+    const source = r.station
+      ? "CZ-Stationskatalog"
+      : manualKc != null
+        ? "manuell"
+        : czFallback?.source || "Durchschnitt";
+    return {
+      name: r.label,
+      destLat: r.destLat,
+      destLng: r.destLng,
+      onewayKm: r.route.distanceKm,
+      durationH: r.route.durationH,
+      routingSource: r.route.source,
+      naviUrl: naviUrl(lat, lng, r.destLat, r.destLng),
+      stationName: r.station?.name,
+      stationAddress: r.station?.address,
+      stationOpeningHours: r.station?.openingHours,
+      priceKc: kc,
+      priceEur: kcToEur(kc, fx.kcPerEur),
+      priceKind: kind,
+      priceSource: `${source}, ${kindLabel[kind]}`,
+      priceTimestamp: r.station?.timestamp ?? czFallback?.timestamp ?? new Date().toISOString(),
+      sparEur: row.sparEur,
+      rank: i + 1,
+    };
+  });
+
+  let nearby: CheckResponse["nearby"] = { restaurants: [], shops: [] };
+  if (providers.fetchNearbyPlaces) {
+    try {
+      nearby = await providers.fetchNearbyPlaces(best.destLat, best.destLng);
+    } catch {
+      /* optional */
+    }
+  }
+
   const hints = [
     "Hinweg: Rest im Tank (schon bezahlt). Rückweg: CZ-Sprit inkl. Kartengebühr.",
     "Es fließt nur rein, was nach der Ankunft noch Platz hat – nicht der volle Tank, wenn noch Rest da ist.",
-    "Essen 12 € für 2 ist Kasse. Quatschen und Ausflug stehen extra – unbezahlbar, hier mit Hausnummer.",
+    "Essen ist Kasse. Quatschen und Ausflug stehen extra – unbezahlbar, hier mit Hausnummer.",
     `Euro-Kurs: ${fx.kcPerEur.toFixed(3).replace(".", ",")} Kč je €. In Kronen zahlen, nicht in Euro umrechnen lassen.`,
-    "CZ-Preis kommt von der günstigsten Tankstelle hinter der gewählten Grenze.",
+    "Angezeigt: die drei besten Spar-Optionen. CZ-Preise von frischen Stationsmeldungen.",
   ];
   if (!trip.kannHin) {
     hints.unshift("Restreichweite reicht nicht bis zur Grenze – vorher in DE nachfüllen oder andere Strecke.");
@@ -371,33 +440,6 @@ export async function runCheck(
         : trip.lohntAusflug
           ? "Ja, der Ausflug lohnt sich"
           : "Nein, nur wegen Sprit lohnt es sich nicht";
-
-  const routen: RouteOption[] = routed.map((r) => {
-    const kc = r.priceKc ?? bestPriceKc;
-    const kind = routeKind(r);
-    const source = r.station
-      ? "CZ-Stationskatalog"
-      : manualKc != null
-        ? "manuell"
-        : czFallback?.source || "Durchschnitt";
-    return {
-      name: r.label,
-      destLat: r.destLat,
-      destLng: r.destLng,
-      onewayKm: r.route.distanceKm,
-      durationH: r.route.durationH,
-      routingSource: r.route.source,
-      naviUrl: naviUrl(lat, lng, r.destLat, r.destLng),
-      stationName: r.station?.name,
-      stationAddress: r.station?.address,
-      stationOpeningHours: r.station?.openingHours,
-      priceKc: kc,
-      priceEur: kcToEur(kc, fx.kcPerEur),
-      priceKind: kind,
-      priceSource: `${source}, ${kindLabel[kind]}`,
-      priceTimestamp: r.station?.timestamp ?? czFallback?.timestamp ?? new Date().toISOString(),
-    };
-  });
 
   return {
     checkedAt: new Date().toISOString(),
@@ -431,7 +473,7 @@ export async function runCheck(
       note: best.station
         ? best.station.stale
           ? "Stationspreis älter als 7 Tage – vor Ort prüfen."
-          : "Günstigste frische Station hinter der Grenze; vor Ort kann es abweichen."
+          : "Beste Spar-Option hinter der Grenze; vor Ort kann es abweichen."
         : czFallback?.note,
       lat: best.destLat,
       lng: best.destLng,
@@ -450,6 +492,8 @@ export async function runCheck(
       tollEur: cfg.tollEur,
     },
     routen,
+    scanLog,
+    nearby,
     strecke: {
       onewayKm: best.route.distanceKm,
       roundKm: trip.dRoundKm,

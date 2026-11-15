@@ -5,6 +5,13 @@ import type { CheckResponse, RouteOption } from "../shared/types";
 import { ageLabel, eur, kc, liters, localWhen, price3 } from "./format";
 import { CookieBanner, LegalLinks, LegalModal, type LegalPage } from "./Legal";
 import { loadLocale, saveLocale, t, type Locale } from "./i18n";
+import type { NearbyPlace } from "../shared/types";
+
+type ProgressState = {
+  step: number;
+  pct: number;
+  scanName: string;
+};
 
 type Fuel = "e10" | "e5" | "diesel";
 
@@ -113,8 +120,42 @@ export default function App() {
   const [pending, setPending] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPage>(null);
   const [lastCz, setLastCz] = useState<LastCzPrice | null>(loadLastCz);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const progressTimer = useRef<number | null>(null);
+
+  const SCAN_NAMES = [
+    "One1 Rozvadov",
+    "OMV Rozvadov",
+    "MOL Cheb",
+    "EuroOil Folmava",
+    "Shell Cheb",
+    "Benzina",
+  ];
+
+  function clearProgressTimer() {
+    if (progressTimer.current != null) {
+      window.clearInterval(progressTimer.current);
+      progressTimer.current = null;
+    }
+  }
+
+  function startProgressRoll() {
+    clearProgressTimer();
+    let tick = 0;
+    setProgress({ step: 0, pct: 8, scanName: SCAN_NAMES[0]! });
+    progressTimer.current = window.setInterval(() => {
+      tick += 1;
+      const step = Math.min(4, Math.floor(tick / 3));
+      const pct = Math.min(92, 8 + tick * 4);
+      setProgress({
+        step,
+        pct,
+        scanName: SCAN_NAMES[tick % SCAN_NAMES.length]!,
+      });
+    }, 700);
+  }
 
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -139,6 +180,8 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
+  useEffect(() => () => clearProgressTimer(), []);
+
   function saveSettings(next: Settings) {
     setSettings(next);
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
@@ -162,8 +205,14 @@ export default function App() {
     setError(null);
     setNeedCz(false);
     setPending(true);
+    setResult(null);
+    startProgressRoll();
     try {
+      setProgress((p) => (p ? { ...p, step: 0, pct: 12 } : p));
       const pos = await locate();
+      setProgress((p) =>
+        p ? { ...p, step: 1, pct: Math.max(p.pct, 22) } : p,
+      );
       const payload: Record<string, unknown> = {
         lat: pos.lat,
         lng: pos.lng,
@@ -176,6 +225,9 @@ export default function App() {
         payload.czPriceKc = lastCz.priceKc;
       }
 
+      setProgress((p) =>
+        p ? { ...p, step: 2, pct: Math.max(p.pct, 35) } : p,
+      );
       const res = await fetch("/api/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -197,6 +249,13 @@ export default function App() {
         throw new Error(msg);
       }
       const body = data as CheckResponse;
+      clearProgressTimer();
+      const log = body.scanLog?.length ? body.scanLog : SCAN_NAMES;
+      setProgress({
+        step: 4,
+        pct: 100,
+        scanName: log[log.length - 1] || SCAN_NAMES[0]!,
+      });
       setResult(body);
       setRouteName(body.routen[0]?.name ?? body.strecke.borderName);
       if (body.tschechien.kind !== "manual" || !opts?.useLastCz) {
@@ -207,10 +266,13 @@ export default function App() {
           fuel: settings.fuel,
         });
       }
+      window.setTimeout(() => setProgress(null), 600);
     } catch (e) {
       setResult(null);
       setError(e instanceof Error ? e.message : t(locale, "errUnknown"));
+      setProgress(null);
     } finally {
+      clearProgressTimer();
       setPending(false);
     }
   }
@@ -306,6 +368,10 @@ export default function App() {
         >
           {pending ? t(locale, "checking") : t(locale, "checkNow")}
         </button>
+
+        {progress && (
+          <CheckProgress locale={locale} progress={progress} />
+        )}
       </section>
 
       {result && (
@@ -352,6 +418,169 @@ export default function App() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+    </div>
+  );
+}
+
+function CheckProgress({
+  locale,
+  progress,
+}: {
+  locale: Locale;
+  progress: ProgressState;
+}) {
+  const steps = [
+    t(locale, "progressGps"),
+    t(locale, "progressDe"),
+    t(locale, "progressCz"),
+    t(locale, "progressRoutes"),
+    t(locale, "progressNearby"),
+  ];
+  return (
+    <div
+      className="animate-[fadeUp_0.35s_ease-out] overflow-hidden rounded-2xl border border-[var(--color-moss)]/20 bg-white/80 p-4 shadow-sm"
+      aria-live="polite"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-lg font-bold text-[var(--color-moss-deep)]">
+          {t(locale, "progressTitle")}
+        </p>
+        <span className="text-xs font-semibold text-[var(--color-moss)]">
+          {t(locale, "progressPct", { pct: progress.pct })}
+        </span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-moss)]/10">
+        <div
+          className="h-full rounded-full bg-[var(--color-moss-deep)] transition-[width] duration-500 ease-out"
+          style={{ width: `${progress.pct}%` }}
+        />
+      </div>
+      <p className="mt-3 text-sm font-medium text-[var(--color-ink)]">
+        {steps[progress.step] ?? steps[0]}
+      </p>
+      <p className="mt-1 truncate text-sm text-[var(--color-moss-deep)] animate-[fadeUp_0.4s_ease-out]">
+        {t(locale, "progressScan", { name: progress.scanName })}
+      </p>
+      <ul className="mt-3 space-y-1">
+        {steps.map((label, i) => (
+          <li
+            key={label}
+            className={`text-xs ${
+              i < progress.step
+                ? "text-[var(--color-ok)]"
+                : i === progress.step
+                  ? "font-semibold text-[var(--color-moss-deep)]"
+                  : "text-[var(--color-ink)]/40"
+            }`}
+          >
+            {i < progress.step ? "✓ " : i === progress.step ? "→ " : "· "}
+            {label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function NearbyBlock({
+  locale,
+  restaurants,
+  shops,
+}: {
+  locale: Locale;
+  restaurants: NearbyPlace[];
+  shops: NearbyPlace[];
+}) {
+  if (!restaurants.length && !shops.length) {
+    return (
+      <div className="rounded-2xl border border-[var(--color-moss)]/15 bg-white/60 px-4 py-3 text-sm text-[var(--color-ink)]/55">
+        <p className="font-semibold text-[var(--color-moss-deep)]">
+          {t(locale, "nearbyTitle")}
+        </p>
+        <p className="mt-1">{t(locale, "nearbyNone")}</p>
+      </div>
+    );
+  }
+
+  function PlaceList({
+    title,
+    places,
+  }: {
+    title: string;
+    places: NearbyPlace[];
+  }) {
+    if (!places.length) return null;
+    return (
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-moss)]">
+          {title}
+        </p>
+        <ul className="mt-2 space-y-2.5">
+          {places.map((p) => (
+            <li
+              key={`${p.kind}-${p.name}`}
+              className="rounded-xl border border-[var(--color-moss)]/12 bg-white/70 px-3 py-2.5"
+            >
+              <p className="font-medium text-[var(--color-ink)]">
+                {p.name}
+                {p.recommended && (
+                  <span className="ml-2 text-xs font-semibold text-[var(--color-ok)]">
+                    {t(locale, "nearbyReco")}
+                    {p.note ? ` · ${p.note}` : ""}
+                  </span>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--color-ink)]/60">
+                {t(locale, "openingHours")}:{" "}
+                {p.openingHours || t(locale, "hoursUnknown")}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {p.phone && (
+                  <a
+                    href={`tel:${p.phone.replace(/\s+/g, "")}`}
+                    className="rounded-lg bg-[var(--color-moss-deep)]/90 px-2.5 py-1 text-xs font-semibold text-[var(--color-paper)]"
+                  >
+                    {t(locale, "nearbyPhone")}
+                  </a>
+                )}
+                <a
+                  href={p.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-[var(--color-moss)]/25 px-2.5 py-1 text-xs font-semibold text-[var(--color-moss-deep)]"
+                >
+                  {t(locale, "nearbyMap")}
+                </a>
+                {p.website && (
+                  <a
+                    href={p.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-[var(--color-moss)]/25 px-2.5 py-1 text-xs font-semibold text-[var(--color-moss-deep)]"
+                  >
+                    {t(locale, "nearbyWeb")}
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-[var(--color-moss)]/15 bg-gradient-to-b from-white/80 to-[var(--color-moss)]/5 px-4 py-4">
+      <div>
+        <p className="font-display text-xl font-bold text-[var(--color-moss-deep)]">
+          {t(locale, "nearbyTitle")}
+        </p>
+        <p className="mt-1 text-xs text-[var(--color-ink)]/55">
+          {t(locale, "nearbyHint")}
+        </p>
+      </div>
+      <PlaceList title={t(locale, "nearbyRestaurants")} places={restaurants} />
+      <PlaceList title={t(locale, "nearbyShops")} places={shops} />
     </div>
   );
 }
@@ -766,14 +995,18 @@ function ResultCard({
               />
               <span>
                 <span className="font-medium">
-                  {r.name}
+                  {t(locale, "bestRank", { n: r.rank ?? i + 1 })}
                   {i === 0 ? ` · ${t(locale, "shortest")}` : ""}
+                  {" · "}
+                  {r.stationName || r.name}
                 </span>
                 <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
-                  {r.stationName ? `${r.stationName} · ` : ""}
                   {r.stationAddress ? `${r.stationAddress} · ` : ""}
                   {kc(r.priceKc)} Kč/l · {Math.round(r.onewayKm)} km ·{" "}
                   {t(locale, "approxMin", { min: Math.round(r.durationH * 60) })}
+                  {r.sparEur != null
+                    ? ` · ${t(locale, "sparHint", { spar: eur(r.sparEur) })}`
+                    : ""}
                 </span>
                 <span className="mt-0.5 block text-xs text-[var(--color-ink)]/55">
                   {t(locale, "openingHours")}:{" "}
@@ -796,6 +1029,12 @@ function ResultCard({
           {czHours || t(locale, "hoursUnknown")}
         </p>
       </div>
+
+      <NearbyBlock
+        locale={locale}
+        restaurants={data.nearby?.restaurants ?? []}
+        shops={data.nearby?.shops ?? []}
+      />
 
       <div className="overflow-hidden rounded-2xl border border-[var(--color-moss)]/15">
         <iframe

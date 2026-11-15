@@ -23,6 +23,20 @@ export type RouteOption = {
   priceKind: PriceKind;
   priceSource: string;
   priceTimestamp: string;
+  /** Spar-Score für Sortierung (Mit-Ausflug). */
+  sparEur?: number;
+  rank?: number;
+};
+
+export type NearbyPlace = {
+  kind: "restaurant" | "shop";
+  name: string;
+  openingHours?: string;
+  phone?: string;
+  website?: string;
+  mapUrl: string;
+  recommended: boolean;
+  note?: string;
 };
 
 export type TripView = {
@@ -91,6 +105,12 @@ export type CheckResponse = {
     tollEur: number;
   };
   routen: RouteOption[];
+  /** Alle geprüften Stationsnamen (für Fortschrittsanzeige). */
+  scanLog: string[];
+  nearby: {
+    restaurants: NearbyPlace[];
+    shops: NearbyPlace[];
+  };
   strecke: {
     onewayKm: number;
     roundKm: number;

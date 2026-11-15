@@ -255,6 +255,11 @@ export async function fetchOpeningHoursBatch(
   return batch(targets);
 }
 
+export async function fetchNearbyPlaces(lat: number, lng: number) {
+  const { fetchNearbyPlaces: nearby } = await import("./nearbyPlaces.js");
+  return nearby(lat, lng);
+}
+
 export async function fetchCzStations(
   cityPath: string,
   fuelType: string,
