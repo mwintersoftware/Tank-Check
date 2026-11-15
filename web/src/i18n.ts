@@ -5,7 +5,7 @@ export type Locale = "de" | "cs";
 export const LANG_KEY = "tank-check-lang";
 
 const de = {
-  brand: "Tank-Check",
+  brand: "CZ-Tank-Check",
   tagline:
     "Lohnt sich Tanken in Tschechien? Hin mit dem Rest im Tank, zurück mit günstigerem Sprit – Essen und Quatschen inklusive.",
   openSettings: "Einstellungen öffnen",
@@ -96,7 +96,7 @@ const de = {
   close: "Schließen",
 
   impressumIntro:
-    "Tank-Check ist eine persönliche Mini-App zum privaten Gebrauch. Kein Angebot an die Allgemeinheit, kein Shop, keine Werbung.",
+    "CZ-Tank-Check ist eine persönliche Mini-App zum privaten Gebrauch. Kein Angebot an die Allgemeinheit, kein Shop, keine Werbung.",
   operator: "Betreiber",
   emailLabel: "E-Mail:",
   contactHint: "Kontaktadresse in der App-Konfiguration hinterlegen, falls nötig.",
@@ -129,7 +129,7 @@ const de = {
 type Dict = { [K in keyof typeof de]: string };
 
 const cs: Dict = {
-  brand: "Tank-Check",
+  brand: "CZ-Tank-Check",
   tagline:
     "Vyplatí se tankovat v Česku? Tam s tím, co zbývá v nádrži, zpět s levnějším benzinem – jídlo a pokec v ceně.",
   openSettings: "Otevřít nastavení",
@@ -220,7 +220,7 @@ const cs: Dict = {
   close: "Zavřít",
 
   impressumIntro:
-    "Tank-Check je osobní miniaplikace pro soukromé použití. Nejde o nabídku veřejnosti, obchod ani reklamu.",
+    "CZ-Tank-Check je osobní miniaplikace pro soukromé použití. Nejde o nabídku veřejnosti, obchod ani reklamu.",
   operator: "Provozovatel",
   emailLabel: "E-mail:",
   contactHint: "Kontaktní adresu doplň v konfiguraci aplikace, pokud je potřeba.",
