@@ -53,6 +53,8 @@ const de = {
     "Persönliche Mini-App zum privaten Gebrauch. DE: Stationspreise. CZ: günstigste Tankstelle hinter der Grenze. Kurs: EZB-Referenz. In Kronen zahlen.",
   errNoGps: "Ohne GPS geht die Strecke nicht. Bitte Standort am Gerät anmachen.",
   errGpsDenied: "Standort nicht da. Bitte GPS erlauben und nochmal prüfen.",
+  errGpsTimeout:
+    "Standort braucht etwas länger. Bitte kurz warten und nochmal prüfen – oft klappt’s beim zweiten Mal.",
   errCheckFailed: "Prüfung fehlgeschlagen",
   errUnknown: "Unbekannter Fehler",
   errCzRequired:
@@ -261,6 +263,8 @@ const cs: Dict = {
     "Osobní miniaplikace pro soukromé použití. DE: ceny u čerpacích. CZ: nejlevnější pumpa za hranicí. Kurz: referenční kurz ECB. Plaťte v korunách.",
   errNoGps: "Bez GPS nejde spočítat trasu. Zapni polohu v zařízení.",
   errGpsDenied: "Poloha není k dispozici. Povol GPS a zkus to znovu.",
+  errGpsTimeout:
+    "Poloha trvá déle. Chvíli počkej a zkus znovu – napodruhé to často projde.",
   errCheckFailed: "Kontrola selhala",
   errUnknown: "Neznámá chyba",
   errCzRequired:

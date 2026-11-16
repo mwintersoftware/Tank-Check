@@ -16,3 +16,4 @@ web/dist/
 web/.vercel/
 web/.env
 
+.vercel

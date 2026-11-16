@@ -162,6 +162,16 @@ export default function App() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
 
+  /** GPS vorwärmen (Permission/Cache), damit der erste Klick nicht wegen Timeout abbricht. */
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      () => {},
+      () => {},
+      { enableHighAccuracy: false, timeout: 30_000, maximumAge: 300_000 },
+    );
+  }, []);
+
   useEffect(() => {
     saveLocale(locale);
     document.documentElement.lang = locale === "cs" ? "cs" : "de";
@@ -189,17 +199,56 @@ export default function App() {
     setMenuOpen(false);
   }
 
+  function readPosition(
+    options: PositionOptions,
+  ): Promise<{ lat: number; lng: number }> {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => reject(err),
+        options,
+      );
+    });
+  }
+
   async function locate(): Promise<{ lat: number; lng: number }> {
     if (!navigator.geolocation) {
       throw new Error(t(locale, "errNoGps"));
     }
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => reject(new Error(t(locale, "errGpsDenied"))),
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
-      );
-    });
+    // Erster Klick: GPS oft noch kalt → Timeout bei 8s/highAccuracy.
+    // Zweiter Versuch nutzt Cache → wirkt „beim 2. Mal ok“.
+    try {
+      return await readPosition({
+        enableHighAccuracy: true,
+        timeout: 20_000,
+        maximumAge: 120_000,
+      });
+    } catch (first) {
+      const code =
+        first && typeof first === "object" && "code" in first
+          ? Number((first as GeolocationPositionError).code)
+          : 0;
+      if (code === 1) {
+        // PERMISSION_DENIED
+        throw new Error(t(locale, "errGpsDenied"));
+      }
+      try {
+        return await readPosition({
+          enableHighAccuracy: false,
+          timeout: 25_000,
+          maximumAge: 300_000,
+        });
+      } catch (second) {
+        const code2 =
+          second && typeof second === "object" && "code" in second
+            ? Number((second as GeolocationPositionError).code)
+            : 0;
+        if (code2 === 1) throw new Error(t(locale, "errGpsDenied"));
+        if (code2 === 3 || code === 3) throw new Error(t(locale, "errGpsTimeout"));
+        throw new Error(t(locale, "errGpsDenied"));
+      }
+    }
   }
 
   async function runCheck(opts?: { useLastCz?: boolean }) {
